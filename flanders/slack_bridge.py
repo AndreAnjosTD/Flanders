@@ -54,9 +54,12 @@ from datetime import datetime
 from io import StringIO
 from pathlib import Path
 
-import flanders_speech
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-HERE = Path(__file__).resolve().parent
+from flanders import flanders_speech
+
+HERE = Path(__file__).resolve().parent.parent
 API_BASE = "https://slack.com/api"
 USER_AGENT = "flanders-slack-bridge/1.0"
 _print_lock = threading.Lock()
@@ -241,7 +244,7 @@ def speak(text):
         return
 
     try:
-        from voice_integration import FlandersVoice
+        from flanders.voice_integration import FlandersVoice
 
         with _speak_lock:
             if _voice is None:

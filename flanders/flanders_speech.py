@@ -265,7 +265,7 @@ def to_speech(text: str, limit: int | None = 600) -> str:
 
 
 def preview(limit: int) -> int:
-    import slack_bridge
+    from flanders import slack_bridge
 
     config = slack_bridge.load_config()
     messages = slack_bridge.fetch_messages(config, limit=limit)

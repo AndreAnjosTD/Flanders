@@ -10,7 +10,7 @@ $Log = Join-Path $StateDir "install.log"
 
 "=== install started $(Get-Date -Format o) ===" | Out-File $Log -Encoding utf8
 
-& (Join-Path $Root ".venv\Scripts\python.exe") (Join-Path $Root "flanders_service.py") install *>&1 |
+& (Join-Path $Root ".venv\Scripts\python.exe") (Join-Path $Root "flanders\flanders_service.py") install *>&1 |
     Tee-Object -FilePath $Log -Append
 
 "exit=$LASTEXITCODE" | Add-Content -Path $Log -Encoding utf8

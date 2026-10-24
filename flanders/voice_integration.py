@@ -31,18 +31,19 @@ import argparse
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+ROOT = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
 
-from flanders_character import classify_task, flanders_response  # noqa: E402
+from flanders.flanders_character import classify_task, flanders_response  # noqa: E402
 
 try:
-    import fish_audio_tts
+    from flanders import fish_audio_tts
 except Exception:  # noqa: BLE001
     fish_audio_tts = None
 
 try:
-    import flanders_local_tts
+    from flanders import flanders_local_tts
 except Exception:  # noqa: BLE001
     flanders_local_tts = None
 

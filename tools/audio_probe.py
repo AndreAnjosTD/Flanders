@@ -22,8 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import flanders_audio
-import fish_audio_tts
+from flanders import flanders_audio, fish_audio_tts
 
 CACHE = ROOT / "tests" / "voice"
 

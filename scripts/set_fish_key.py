@@ -41,7 +41,7 @@ def main(argv: list[str]) -> int:
     if "--no-test" in argv:
         return 0
 
-    import fish_audio_tts
+    from flanders import fish_audio_tts
 
     print("Testing with one short line ...")
     path = fish_audio_tts.synthesize(TEST_LINE)

@@ -21,8 +21,8 @@ from pathlib import Path
 
 import numpy as np
 
-HERE = Path(__file__).resolve().parent
-SETTINGS = HERE / "voice_settings.json"
+ROOT = Path(__file__).resolve().parent.parent
+SETTINGS = ROOT / "voice_settings.json"
 
 
 def list_devices() -> list[tuple[int, str, int]]:

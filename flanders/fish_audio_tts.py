@@ -46,9 +46,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-KEY_FILE = HERE / "fish_audio_key.txt"
-SETTINGS_FILE = HERE / "voice_settings.json"
+ROOT = Path(__file__).resolve().parent.parent
+KEY_FILE = ROOT / "fish_audio_key.txt"
+SETTINGS_FILE = ROOT / "voice_settings.json"
 
 API_URL = "https://api.fish.audio/v1/tts"
 DEFAULT_VOICE_ID = "8ca8ea05a29548758a9085747db19879"
@@ -119,7 +119,7 @@ def _api_key() -> str | None:
 
 def _play(path: Path) -> None:
     """Play an audio file, blocking until it finishes."""
-    from flanders_audio import play
+    from flanders.flanders_audio import play
 
     play(path)
 

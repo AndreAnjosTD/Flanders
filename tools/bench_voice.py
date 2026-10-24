@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
 
 import soundfile as sf
 
-from flanders_local_tts import LocalFishVoice
+from flanders.flanders_local_tts import LocalFishVoice
 
 TEXT = "Okily dokily, captain! Flanders is here and in fine voice today."
 OUT = ROOT / "tests" / "voice"

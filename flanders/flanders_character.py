@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 
 # Add the Flanders project skills to the path
-sys.path.insert(0, str(Path(__file__).parent / ".agents" / "skills"))
+sys.path.insert(0, str(Path(__file__).parent.parent / ".agents" / "skills"))
 
 
 def flanders_response(task_description):

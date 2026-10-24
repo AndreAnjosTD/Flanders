@@ -39,7 +39,8 @@ from pathlib import Path
 # so teach this process where the venv's packages live before importing them.
 # A bare site-packages entry is not enough: pywin32 normally adds win32/lib and
 # its DLL directory through a .pth file that only runs for the venv interpreter.
-_VENV_SITE = Path(__file__).resolve().parent / ".venv" / "Lib" / "site-packages"
+ROOT = Path(__file__).resolve().parent.parent
+_VENV_SITE = ROOT / ".venv" / "Lib" / "site-packages"
 if _VENV_SITE.is_dir():
     if str(_VENV_SITE) not in sys.path:
         sys.path.insert(0, str(_VENV_SITE))
@@ -58,11 +59,14 @@ if _VENV_SITE.is_dir():
     except ImportError:
         pass
 
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 
 def _boot(step: str) -> None:
     """Breadcrumb trail for diagnosing service startup."""
     try:
-        target = Path(__file__).resolve().parent / "state"
+        target = ROOT / "state"
         target.mkdir(parents=True, exist_ok=True)
         with (target / "service-boot.log").open("a", encoding="utf-8") as handle:
             handle.write(f"{datetime.now().isoformat(timespec='seconds')} {step}\n")
@@ -96,17 +100,17 @@ import servicemanager  # noqa: E402
 
 _boot("servicemanager")
 
-import slack_bridge  # noqa: E402
+from flanders import slack_bridge  # noqa: E402
 
 _boot("slack_bridge imported")
 
-HERE = Path(__file__).resolve().parent
+HERE = ROOT
 STATE = HERE / "state"
 QUEUE = STATE / "speech"
 SERVICE_LOG = STATE / "flanders-service.log"
 SPEAKER_HEARTBEAT = STATE / "speaker.heartbeat"
 SPEAKER_STOP = STATE / "speaker.stop"
-SPEAKER_SCRIPT = HERE / "flanders_speaker.py"
+SPEAKER_SCRIPT = HERE / "flanders" / "flanders_speaker.py"
 PYTHONW = HERE / ".venv" / "Scripts" / "pythonw.exe"
 
 SERVICE_NAME = "FlandersSlackWatch"

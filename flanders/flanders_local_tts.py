@@ -37,13 +37,13 @@ import tempfile
 import wave
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-REPO = HERE / "fish-speech"
+ROOT = Path(__file__).resolve().parent.parent
+REPO = ROOT / "fish-speech"
 LLAMA_DIR = REPO / "checkpoints" / "fish-speech-1.5"
 DECODER_WEIGHTS = LLAMA_DIR / "firefly-gan-vq-fsq-8x1024-21hz-generator.pth"
 DECODER_CONFIG = "firefly_gan_vq"
 
-REF_DIR = HERE / "references"
+REF_DIR = ROOT / "references"
 REF_WAV = REF_DIR / "flanders_sample.wav"
 REF_MP3 = REF_DIR / "flanders_sample.mp3"
 REF_TXT = REF_DIR / "flanders_sample.txt"
@@ -69,7 +69,7 @@ def _require_paths() -> None:
 
 
 def _play(path: Path) -> None:
-    from flanders_audio import play
+    from flanders.flanders_audio import play
 
     play(path)
 

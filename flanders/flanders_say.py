@@ -32,10 +32,11 @@ import argparse
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
+ROOT = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
 
-from voice_integration import FlandersVoice  # noqa: E402
+from flanders.voice_integration import FlandersVoice  # noqa: E402
 
 
 def read_text(args: argparse.Namespace) -> str:

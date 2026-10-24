@@ -23,8 +23,11 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-STATE = HERE / "state"
+ROOT = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
+
+STATE = ROOT / "state"
 QUEUE = STATE / "speech"
 HEARTBEAT = STATE / "speaker.heartbeat"
 PID_FILE = STATE / "speaker.pid"
@@ -121,7 +124,7 @@ def main(argv: list[str]) -> int:
 
     PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
 
-    from voice_integration import FlandersVoice
+    from flanders.voice_integration import FlandersVoice
 
     voice = FlandersVoice(engine=os.environ.get("FLANDERS_ENGINE", "auto"))
     heartbeat("starting")
