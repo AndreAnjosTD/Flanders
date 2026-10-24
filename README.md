@@ -38,12 +38,14 @@ is not affiliated with, or endorsed by, anybody official.
 
 | Module | What it does |
 |---|---|
+| `flanders/settings.py` | The single reader for `voice_settings.json` |
 | `flanders/voice_integration.py` | Picks the voice engine and owns the `/flanders` command tree |
 | `flanders/fish_audio_tts.py` | Hosted Fish Audio voice, free tier |
 | `flanders/flanders_local_tts.py` | Offline Fish Speech clone on the local GPU |
 | `flanders/flanders_speech.py` | Turns Slack text into speakable prose |
 | `flanders/flanders_audio.py` | Plays audio on a chosen output device |
 | `flanders/flanders_character.py` | Personality and task classification |
+| `flanders/secret_store.py` | Credential store access, never a file |
 | `flanders/slack_bridge.py` | Reads and posts to the Slack channel |
 | `flanders/flanders_service.py` | The Windows service that owns the listener |
 | `flanders/flanders_speaker.py` | The in-session speaker the service drives |
@@ -91,6 +93,12 @@ Switching to `offline` keeps everything on the machine, at the cost of speed.
 The key itself is never a file: it comes from `FISH_API_KEY` for a session, or
 from the encrypted Windows credential store.
 
+Keeping audio instead of just playing it:
+
+```powershell
+.\.venv\Scripts\python.exe flanders\voice_integration.py --save out.wav "Hi-diddly-ho!"
+```
+
 ## 📋 Requirements
 
 | Need | When | Notes |
@@ -98,6 +106,7 @@ from the encrypted Windows credential store.
 | Windows 10 or 11 | always | the service, the SAPI fallback, and the win32 calls are Windows-only |
 | Python 3.12 | always | everything runs in the project virtual environment |
 | `requirements.txt` | always | audio playback, the speech fallback, and the service host |
+| `requirements-dev.txt` | contributing | linting and the banner tooling; never imported at runtime |
 | A Fish Audio key | hosted voice | the free model needs a key but no credit; without a key the local voice takes over |
 | An NVIDIA GPU | offline voice | only for the local Fish Speech model |
 | A Slack app | the listener | bot token with read and write scopes |
@@ -169,11 +178,19 @@ the commands above actually do something.
 
 ## ✅ Tests
 
-Automated checks, safe to run anywhere:
+Every automated check, in one go:
+
+```powershell
+.\.venv\Scripts\python.exe tests\run_tests.py
+```
+
+That covers speech cleaning, command dispatch, and secret resolution. Each check
+also runs on its own:
 
 ```powershell
 .\.venv\Scripts\python.exe tests\test_speech.py
 .\.venv\Scripts\python.exe tests\test_commands.py
+.\.venv\Scripts\python.exe tests\test_secret_store.py
 ```
 
 The audible checks live in `tests/manual/`, because they play sound and need the
@@ -181,6 +198,14 @@ local model or a network key:
 
 ```powershell
 .\.venv\Scripts\python.exe tests\manual\test_local_voice.py
+```
+
+Linting and formatting use `ruff`, configured in `pyproject.toml`:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
 ```
 
 ## 🗂️ Project layout
@@ -201,6 +226,7 @@ The package runs directly (`python flanders\voice_integration.py`) or as a modul
 
 - [`docs/LOCAL_VOICE.md`](docs/LOCAL_VOICE.md) — offline model, tuning, and cost notes
 - [`docs/SERVICE.md`](docs/SERVICE.md) — the service, and why there are two processes
+- [`docs/SECURITY.md`](docs/SECURITY.md) — what is stored where, and what leaves the machine
 - [`docs/SKILL.md`](docs/SKILL.md) — how firstmate drives the character
 
 ## 🔐 Credentials
@@ -238,7 +264,9 @@ The hosted voice takes its key from one of two places:
    voice keeps working while the Proton session is dormant.
 
 No other path in the application can reach the Proton vault, and only a SHA-256
-fingerprint is ever printed.
+fingerprint is ever printed. The full picture — what is stored where, what leaves
+the machine, and the limits worth knowing — is in
+[`docs/SECURITY.md`](docs/SECURITY.md).
 
 The free model still requires a key: an unauthenticated request is rejected. It
 does **not** require API credit — the model is chosen with the `model` header,
