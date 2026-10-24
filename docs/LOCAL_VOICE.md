@@ -32,24 +32,24 @@ Re-running is safe; finished steps are skipped.
 
 ```powershell
 # one line
-.\.venv\Scripts\python.exe flanders_local_tts.py "Okily dokily, captain!"
+.\.venv\Scripts\python.exe flanders\flanders_local_tts.py "Okily dokily, captain!"
 
 # type lines and hear each one
-.\.venv\Scripts\python.exe flanders_local_tts.py --loop
+.\.venv\Scripts\python.exe flanders\flanders_local_tts.py --loop
 
 # save to a file instead of playing
-.\.venv\Scripts\python.exe flanders_local_tts.py --save out.wav "Praise the Lord!"
+.\.venv\Scripts\python.exe flanders\flanders_local_tts.py --save out.wav "Praise the Lord!"
 
 # readiness check
-.\.venv\Scripts\python.exe flanders_local_tts.py --check
+.\.venv\Scripts\python.exe flanders\flanders_local_tts.py --check
 
 # the full command tree, with voice
-.\.venv\Scripts\python.exe voice_integration.py
+.\.venv\Scripts\python.exe flanders\voice_integration.py
 ```
 
 ## How the voice is chosen
 
-`voice_integration.py` picks `hosted` when a key is present, then `local` when
+`flanders/voice_integration.py` picks `hosted` when a key is present, then `local` when
 the weights and reference are present, then the Windows voice. If a hosted
 request fails, the local voice takes over for that line. Force one with
 `--engine local|hosted|sapi`.
@@ -118,14 +118,14 @@ Environment variables override the file: `FISH_AUDIO_SPEED`,
 
 ## Speaking from firstmate
 
-`flanders_say.py` is the bridge. Firstmate (or anything else) hands it text and
+`flanders/flanders_say.py` is the bridge. Firstmate (or anything else) hands it text and
 Flanders speaks it:
 
 ```powershell
-.\.venv\Scripts\python.exe flanders_say.py "Okily dokily, captain!"
-.\.venv\Scripts\python.exe flanders_say.py --file report.txt
-Get-Content report.txt | .\.venv\Scripts\python.exe flanders_say.py
-.\.venv\Scripts\python.exe flanders_say.py --engine local "Private line."
+.\.venv\Scripts\python.exe flanders\flanders_say.py "Okily dokily, captain!"
+.\.venv\Scripts\python.exe flanders\flanders_say.py --file report.txt
+Get-Content report.txt | .\.venv\Scripts\python.exe flanders\flanders_say.py
+.\.venv\Scripts\python.exe flanders\flanders_say.py --engine local "Private line."
 ```
 
 The hosted engine sends the text to Fish Audio. Use `--engine local` for

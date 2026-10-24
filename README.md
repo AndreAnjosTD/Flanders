@@ -9,28 +9,29 @@ cleaned so icons and markup are never read aloud.
 
 ## What is in here
 
-| File | Role |
+| Module | Role |
 |---|---|
-| `voice_integration.py` | Engine selection (hosted, local, Windows), `/flanders` command tree |
-| `fish_audio_tts.py` | Hosted Fish Audio voice |
-| `flanders_local_tts.py` | Offline Fish Speech clone |
-| `flanders_speech.py` | Turns Slack text into speakable prose |
-| `flanders_audio.py` | Playback with an explicit output device |
-| `flanders_character.py` | Personality and task classification |
-| `slack_bridge.py` | Reads and posts to the Slack channel |
-| `flanders_service.py` | Windows service that owns the Slack listener |
-| `flanders_speaker.py` | In-session speaker the service drives |
+| `flanders/voice_integration.py` | Engine selection (hosted, local, Windows), `/flanders` command tree |
+| `flanders/fish_audio_tts.py` | Hosted Fish Audio voice |
+| `flanders/flanders_local_tts.py` | Offline Fish Speech clone |
+| `flanders/flanders_speech.py` | Turns Slack text into speakable prose |
+| `flanders/flanders_audio.py` | Playback with an explicit output device |
+| `flanders/flanders_character.py` | Personality and task classification |
+| `flanders/slack_bridge.py` | Reads and posts to the Slack channel |
+| `flanders/flanders_service.py` | Windows service that owns the Slack listener |
+| `flanders/flanders_speaker.py` | In-session speaker the service drives |
+| `flanders/flanders_say.py` | Command-line bridge firstmate calls to speak text |
 
 ## Quick start
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-local.txt
-.\.venv\Scripts\python.exe voice_integration.py
+.\.venv\Scripts\python.exe flanders\voice_integration.py
 ```
 
-For the offline voice, run `setup_local.ps1` once; it fetches the model and the
-reference sample. See `LOCAL_VOICE.md`.
+For the offline voice, run `scripts\setup_local.ps1` once; it fetches the model
+and the reference sample. See [`docs/LOCAL_VOICE.md`](docs/LOCAL_VOICE.md).
 
 ## Commands
 
@@ -46,25 +47,33 @@ Plain text is read aloud but never answered. Only the commands above act.
 
 ## Tests
 
+Automated checks:
+
 ```powershell
 .\.venv\Scripts\python.exe tests\test_speech.py
 .\.venv\Scripts\python.exe tests\test_commands.py
 ```
 
+The audible checks live in `tests/manual/` because they play sound and need the
+local model or a network key:
+
+```powershell
+.\.venv\Scripts\python.exe tests\manual\test_local_voice.py
+```
+
 ## Project layout
 
 ```
+flanders/     the package: voice, speech, Slack, and the Windows service
 docs/         guides: local voice, service, and the agent skill
 scripts/      setup and operations (venv, model, API key, service install)
 tools/        diagnostics: audio devices, voice variants, benchmarks
-tests/        automated checks
+tests/        automated checks; tests/manual/ holds the audible ones
 references/   voice-clone transcript
-*.py          the application modules, kept at the root
 ```
 
-The core modules stay at the project root on purpose: the installed Windows
-service and firstmate call them by exact path, so moving them would break a
-running listener.
+The package runs directly (`python flanders\voice_integration.py`) or as a
+module (`python -m flanders.voice_integration`).
 
 ## Documentation
 

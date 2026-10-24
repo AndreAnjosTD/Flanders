@@ -16,7 +16,7 @@ So the work is split:
 | Process | Runs as | Session | Job |
 |---|---|---|---|
 | `FlandersSlackWatch` service | LocalSystem | 0 | Polls Slack, writes speech jobs |
-| `flanders_speaker.py` | the captain | 1 | Reads the jobs, speaks them |
+| `flanders/flanders_speaker.py` | the captain | 1 | Reads the jobs, speaks them |
 
 The service starts the speaker itself by duplicating the logged-on user's token
 (`WTSQueryUserToken` + `CreateProcessAsUser`). No scheduled task, no PowerShell,
@@ -28,7 +28,7 @@ rather than replayed, so a long logout does not produce a wall of speech.
 
 ## What gets spoken
 
-Slack text is written for eyes. `flanders_speech.py` turns it into speech:
+Slack text is written for eyes. `flanders/flanders_speech.py` turns it into speech:
 
 - **Icons** are dropped, except a short meaningful set spoken as words:
   Done, Warning, Alert, Blocked, Idea.
@@ -58,11 +58,11 @@ Install, start and stop need an elevated prompt (administrator):
 
 ```powershell
 cd C:\Users\abanj\Dev\Flanders
-.\.venv\Scripts\python.exe flanders_service.py install
-.\.venv\Scripts\python.exe flanders_service.py status
-.\.venv\Scripts\python.exe flanders_service.py stop
-.\.venv\Scripts\python.exe flanders_service.py start
-.\.venv\Scripts\python.exe flanders_service.py uninstall
+.\.venv\Scripts\python.exe flanders\flanders_service.py install
+.\.venv\Scripts\python.exe flanders\flanders_service.py status
+.\.venv\Scripts\python.exe flanders\flanders_service.py stop
+.\.venv\Scripts\python.exe flanders\flanders_service.py start
+.\.venv\Scripts\python.exe flanders\flanders_service.py uninstall
 ```
 
 `install` also deletes the old scheduled task, so the two can never double up.
@@ -72,7 +72,7 @@ The service is set to start automatically at boot and to restart 5s, 10s, then
 Foreground debugging (no service, prints to the console):
 
 ```powershell
-.\.venv\Scripts\python.exe flanders_service.py run
+.\.venv\Scripts\python.exe flanders\flanders_service.py run
 ```
 
 ## Choosing the output device
