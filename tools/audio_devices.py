@@ -2,19 +2,25 @@
 r"""List output devices, or play a counting test so the captain can identify one.
 
 Usage:
-    .\.venv\Scripts\python.exe audio_devices.py --list
-    .\.venv\Scripts\python.exe audio_devices.py --test Radio
-    .\.venv\Scripts\python.exe audio_devices.py --test 4
-    .\.venv\Scripts\python.exe audio_devices.py --sweep
+    .\.venv\Scripts\python.exe tools\audio_devices.py --list
+    .\.venv\Scripts\python.exe tools\audio_devices.py --test Radio
+    .\.venv\Scripts\python.exe tools\audio_devices.py --test 4
+    .\.venv\Scripts\python.exe tools\audio_devices.py --sweep
 """
 
 from __future__ import annotations
 
 import argparse
+import sys
 import time
+from pathlib import Path
 
 import numpy as np
 import sounddevice as sd
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import flanders_audio
 

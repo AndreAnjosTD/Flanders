@@ -4,13 +4,18 @@ r"""Audible smoke test for the local Flanders voice.
 Generates a few short lines, reports how long each took, and plays them.
 Run from the project root with the venv interpreter:
 
-    .\.venv\Scripts\python.exe test_local_voice.py
+    .\.venv\Scripts\python.exe tools\test_local_voice.py
 """
 
 from __future__ import annotations
 
+import sys
 import time
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from flanders_local_tts import LocalFishVoice, _play
 
@@ -20,7 +25,7 @@ PHRASES = [
     "Praise the Lord! The local voice is working just the way it ought to.",
 ]
 
-OUT = Path(__file__).resolve().parent / "tests" / "voice"
+OUT = ROOT / "tests" / "voice"
 
 
 def main() -> int:

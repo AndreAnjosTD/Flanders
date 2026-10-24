@@ -8,8 +8,8 @@ Plays a numbered line through each candidate speaker in turn:
     "Four"  -> Jabra headset (WASAPI)
 
 Run:
-    .\.venv\Scripts\python.exe audio_probe.py            # generate + play
-    .\.venv\Scripts\python.exe audio_probe.py --cached   # reuse generated lines
+    .\.venv\Scripts\python.exe tools\audio_probe.py            # generate + play
+    .\.venv\Scripts\python.exe tools\audio_probe.py --cached   # reuse generated lines
 """
 
 from __future__ import annotations
@@ -18,11 +18,14 @@ import sys
 import time
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import flanders_audio
 import fish_audio_tts
 
-HERE = Path(__file__).resolve().parent
-CACHE = HERE / "tests" / "voice"
+CACHE = ROOT / "tests" / "voice"
 
 TARGETS = [
     (14, "One", "Jabra headset (DirectSound)"),

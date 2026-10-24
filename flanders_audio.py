@@ -7,7 +7,7 @@ lets Flanders speak to a chosen device.
 
 Choose a device with:
     set FLANDERS_AUDIO_DEVICE=Headset           (matches by name)
-    set FLANDERS_AUDIO_DEVICE=14                (index from audio_devices.py)
+    set FLANDERS_AUDIO_DEVICE=14                (index from tools/audio_devices.py)
 
 When it is unset, the Windows default output is used.
 """

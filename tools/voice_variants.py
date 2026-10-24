@@ -2,16 +2,21 @@
 r"""Generate the same line in a few voice settings so the captain can pick one.
 
 Run:
-    .\.venv\Scripts\python.exe voice_variants.py
+    .\.venv\Scripts\python.exe tools\voice_variants.py
 """
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import fish_audio_tts
 
-OUT = Path(__file__).resolve().parent / "tests" / "voice"
+OUT = ROOT / "tests" / "voice"
 
 LINE = (
     "Hi-diddly-ho, captain! Flanders is all tuned up and ready to lend a hand "

@@ -7,12 +7,16 @@ import sys
 import time
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import soundfile as sf
 
 from flanders_local_tts import LocalFishVoice
 
 TEXT = "Okily dokily, captain! Flanders is here and in fine voice today."
-OUT = Path(__file__).resolve().parent / "tests" / "voice"
+OUT = ROOT / "tests" / "voice"
 
 
 def run(half: bool) -> None:
