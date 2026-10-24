@@ -11,8 +11,10 @@ the platform already serves with Drama 3:
     https://fish.audio/m/8ca8ea05a29548758a9085747db19879/
 
 Requirements:
-    A Fish Audio API key. Set FISH_API_KEY (or FISH_AUDIO_API_KEY), or put the
-    key on its own line in fish_audio_key.txt next to this file.
+    A Fish Audio API key, supplied in the environment for the session:
+    set FISH_API_KEY (or FISH_AUDIO_API_KEY). No key is written to disk, and
+    the Proton vault is only read with the captain's explicit consent, never
+    automatically.
     Create a key at https://fish.audio/app/api-keys/
 
 Usage:
@@ -47,7 +49,6 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-KEY_FILE = ROOT / "fish_audio_key.txt"
 SETTINGS_FILE = ROOT / "voice_settings.json"
 
 API_URL = "https://api.fish.audio/v1/tts"
@@ -106,15 +107,24 @@ def _tuned(name: str, env_name: str, default):
 
 
 def _api_key() -> str | None:
+    """The hosted key, supplied per session in the environment.
+
+    Deliberately no file and no vault lookup: a secret is never stored on disk,
+    and reaching the Proton vault requires the captain's explicit consent, so it
+    is never automatic.
+    """
     for name in ("FISH_API_KEY", "FISH_AUDIO_API_KEY"):
         key = os.environ.get(name, "").strip()
         if key:
             return key
-    if KEY_FILE.exists():
-        value = KEY_FILE.read_text(encoding="utf-8").strip()
-        if value:
-            return value
     return None
+
+
+def key_fingerprint(key: str) -> str:
+    """A one-way reference to a key, safe to print or log."""
+    import hashlib
+
+    return "sha256:" + hashlib.sha256(key.encode()).hexdigest()[:12]
 
 
 def _play(path: Path) -> None:
@@ -169,8 +179,8 @@ def synthesize(
     key = _api_key()
     if not key:
         print(
-            "No Fish Audio API key found. Set FISH_AUDIO_API_KEY or create "
-            f"{KEY_FILE} with the key on its own line."
+            "No Fish Audio API key in the environment. Set FISH_API_KEY for this "
+            "session; no key is stored on disk."
         )
         return None
 
@@ -244,7 +254,7 @@ def speak(
     out_path = None
     if keep:
         safe = "".join(c if c.isalnum() else "_" for c in text[:40]).strip("_")
-        out_path = HERE / f"flanders_{safe or 'line'}.wav"
+        out_path = ROOT / f"flanders_{safe or 'line'}.wav"
 
     path = synthesize(
         text,
@@ -305,10 +315,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.check:
         key = _api_key()
-        print(f"API key: {'present' if key else 'missing'}")
+        print(f"API key: {'present ' + key_fingerprint(key) if key else 'missing (set FISH_API_KEY)'}")
         print(f"Voice id: {args.voice}")
         print(f"Model: {args.model or _model()}")
-        print(f"Key file: {KEY_FILE} ({'exists' if KEY_FILE.exists() else 'absent'})")
         return 0 if key else 1
 
     text = " ".join(args.text).strip()

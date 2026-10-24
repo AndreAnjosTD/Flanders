@@ -92,12 +92,12 @@ class FlandersVoice:
         except Exception:  # noqa: BLE001
             return False
         files = [
-            HERE / "fish-speech" / "checkpoints" / "fish-speech-1.5" / "config.json",
-            HERE / "fish-speech" / "checkpoints" / "fish-speech-1.5" / "model.pth",
-            HERE / "fish-speech" / "checkpoints" / "fish-speech-1.5"
+            ROOT / "fish-speech" / "checkpoints" / "fish-speech-1.5" / "config.json",
+            ROOT / "fish-speech" / "checkpoints" / "fish-speech-1.5" / "model.pth",
+            ROOT / "fish-speech" / "checkpoints" / "fish-speech-1.5"
             / "firefly-gan-vq-fsq-8x1024-21hz-generator.pth",
-            HERE / "references" / "flanders_sample.wav",
-            HERE / "references" / "flanders_sample.txt",
+            ROOT / "references" / "flanders_sample.wav",
+            ROOT / "references" / "flanders_sample.txt",
         ]
         return all(path.exists() for path in files)
 

@@ -60,14 +60,18 @@ The same Ned Flanders voice is available on Fish Audio's Drama 3 model. It is
 instant and higher quality, and it needs an API key plus a small prepaid balance.
 
 1. Create a key at <https://fish.audio/app/api-keys/>.
-2. Save and verify it:
+2. Export it for the session only:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\set_fish_key.py <your-key>
+$env:FISH_API_KEY = "<your-key>"
 ```
 
-The key is written to `fish_audio_key.txt` and read automatically. You can also
-set `FISH_API_KEY` in the environment instead.
+No key is written to disk, and the Proton vault is read only with explicit
+consent, never automatically. Confirm what the voice sees:
+
+```powershell
+.\.venv\Scripts\python.exe flanders\fish_audio_tts.py --check
+```
 
 Fair-use limits apply to the free model. If a request is throttled or fails, the
 local voice takes over for that line automatically.

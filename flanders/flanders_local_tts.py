@@ -175,7 +175,7 @@ class LocalFishVoice:
         out = None
         if keep:
             safe = "".join(c if c.isalnum() else "_" for c in text[:40]).strip("_")
-            out = HERE / f"flanders_{safe or 'line'}.wav"
+            out = ROOT / f"flanders_{safe or 'line'}.wav"
 
         path = self.synthesize(text, out_path=out)
         _play(path)

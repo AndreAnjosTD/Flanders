@@ -77,7 +77,7 @@ Three engines, tried in order, so a network hiccup never leaves the room silent:
 
 | Order | Engine | Notes |
 |---|---|---|
-| 1 | **Hosted** — Fish Audio `s2.1-pro-free` | Free under fair-use limits; needs a key |
+| 1 | **Hosted** — Fish Audio `s2.1-pro-free` | Needs a key and a funded API balance |
 | 2 | **Local** — Fish Speech 1.5 | Offline, free, cloned from the reference sample; slower |
 | 3 | **Fallback** — Windows SAPI | Robotic, but always there |
 
@@ -88,7 +88,7 @@ Three engines, tried in order, so a network hiccup never leaves the room silent:
 | Windows 10 or 11 | always | the service, the SAPI fallback, and the win32 calls are Windows-only |
 | Python 3.12 | always | everything runs in the project virtual environment |
 | `requirements.txt` | always | audio playback, the speech fallback, and the service host |
-| A Fish Audio key | hosted voice | free tier; without it the local or Windows voice takes over |
+| A Fish Audio key | hosted voice | the free model still needs a key and a funded API balance; otherwise the local voice takes over |
 | An NVIDIA GPU | offline voice | only for the local Fish Speech model |
 | A Slack app | the listener | bot token with read and write scopes |
 | firstmate | optional | the Slack listener reads its config by default |
@@ -195,13 +195,21 @@ The package runs directly (`python flanders\voice_integration.py`) or as a modul
 
 ## 🔐 Credentials
 
-No credentials live in this repository. The hosted voice reads its key from
-`fish_audio_key.txt`, which is ignored by git, or from `FISH_API_KEY`. To store a
-key safely:
+No credentials live in this repository, and the application writes none to disk.
+The hosted voice reads its key from the environment for the length of one
+session:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts\set_fish_key.py <the-key>
+$env:FISH_API_KEY = "<the-key>"
 ```
+
+The key exists only inside that process tree. It is never written to a file, and
+the Proton vault is read only with explicit consent — never automatically.
+
+When no key is present, the local voice takes over. Note that the free model
+removes the cost of the model, not the need for a key: an unauthenticated request
+is rejected, and an account without API credit answers `402 Insufficient API
+credit`.
 
 ## ⚖️ A note on the voice
 
