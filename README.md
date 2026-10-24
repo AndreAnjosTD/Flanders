@@ -220,8 +220,18 @@ The hosted voice takes its key from one of two places:
    ```powershell
    .\.venv\Scripts\python.exe scripts\import_key.py --from-vault
    .\.venv\Scripts\python.exe scripts\import_key.py --status
+   .\.venv\Scripts\python.exe scripts\import_key.py --session
+   .\.venv\Scripts\python.exe scripts\import_key.py --store-token
    .\.venv\Scripts\python.exe scripts\import_key.py --forget
    ```
+
+   `--from-vault` re-authenticates by itself when the Proton session expires,
+   using a bootstrap token held in the same encrypted store. `--session` reports
+   that state, and `--store-token` replaces the bootstrap token if it is ever
+   revoked. `--forget` removes the cached key.
+
+   Vault expiry never affects speech: the key is already cached, so the hosted
+   voice keeps working while the Proton session is dormant.
 
 No other path in the application can reach the Proton vault, and only a SHA-256
 fingerprint is ever printed.
