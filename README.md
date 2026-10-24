@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="Flanders — a neighbourly voice for task delegation" width="100%">
+  <img src="docs/banner.png" alt="Flanders — a neighbourly voice for task delegation" width="100%">
 </p>
 
 <p align="center">
