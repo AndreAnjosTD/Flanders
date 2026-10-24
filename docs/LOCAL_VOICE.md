@@ -57,7 +57,8 @@ request fails, the local voice takes over for that line. Force one with
 ## Hosted voice (Drama 3)
 
 The same Ned Flanders voice is available on Fish Audio's Drama 3 model. It is
-instant and higher quality, and it needs an API key plus a small prepaid balance.
+instant and higher quality, and it needs an API key. The free model needs no API
+credit.
 
 1. Create a key at <https://fish.audio/app/api-keys/>.
 2. Export it for the session only:
