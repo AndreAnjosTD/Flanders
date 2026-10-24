@@ -1,7 +1,8 @@
 # Elevated: start (or stop) the Flanders service and report what happened.
 param([string]$Action = "start")
 
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = Split-Path -Parent $ScriptDir
 $StateDir = Join-Path $Root "state"
 New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
 $Log = Join-Path $StateDir "service-action.log"

@@ -16,8 +16,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
-KEY_FILE = HERE / "fish_audio_key.txt"
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+KEY_FILE = ROOT / "fish_audio_key.txt"
 TEST_LINE = "Okily dokily, captain! The hosted voice is working just fine."
 
 

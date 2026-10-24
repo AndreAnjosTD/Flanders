@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+HERE = Path(__file__).resolve().parent.parent
 REF_DIR = HERE / "references"
 SRC = REF_DIR / "flanders_sample.mp3"
 DST = REF_DIR / "flanders_sample.wav"

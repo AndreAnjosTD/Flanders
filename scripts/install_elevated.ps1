@@ -1,6 +1,7 @@
 # Runs elevated (UAC) to install the Flanders Slack Watch service.
 $ErrorActionPreference = "Continue"
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = Split-Path -Parent $ScriptDir
 Set-Location $Root
 
 $StateDir = Join-Path $Root "state"

@@ -13,7 +13,8 @@
 #   6. print a readiness check
 
 $ErrorActionPreference = "Stop"
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = Split-Path -Parent $ScriptDir
 Set-Location $Root
 
 $Venv = Join-Path $Root ".venv"
@@ -62,9 +63,9 @@ foreach ($file in $files) {
 
 Step "5/6 reference clip"
 if (-not (Test-Path (Join-Path $Root "references\flanders_sample.txt"))) {
-    & $Py (Join-Path $Root "fetch_reference.py")
+    & $Py (Join-Path $Root "scripts\fetch_reference.py")
 }
-& $Py (Join-Path $Root "prepare_reference.py")
+& $Py (Join-Path $Root "scripts\prepare_reference.py")
 
 Step "6/6 readiness"
 & $Py (Join-Path $Root "flanders_local_tts.py") --check

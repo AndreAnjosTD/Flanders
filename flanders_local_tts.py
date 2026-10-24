@@ -62,7 +62,7 @@ def _require_paths() -> None:
         )
     if not REF_WAV.exists():
         raise SystemExit(
-            f"Missing reference WAV {REF_WAV}. Run prepare_reference.py first."
+            f"Missing reference WAV {REF_WAV}. Run scripts/prepare_reference.py first."
         )
     if not REF_TXT.exists():
         raise SystemExit(f"Missing reference transcript {REF_TXT}.")

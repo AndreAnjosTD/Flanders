@@ -10,7 +10,7 @@ import urllib.request
 from pathlib import Path
 
 MODEL_ID = "8ca8ea05a29548758a9085747db19879"
-OUT = Path(__file__).resolve().parent / "references"
+OUT = Path(__file__).resolve().parent.parent / "references"
 
 API = f"https://api.fish.audio/model/{MODEL_ID}"
 
