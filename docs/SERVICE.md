@@ -26,6 +26,11 @@ If nobody is logged on, the service keeps listening and queues jobs. The speaker
 starts as soon as a session appears. Jobs older than 10 minutes are dropped
 rather than replayed, so a long logout does not produce a wall of speech.
 
+The speaker always runs an **offline** engine — the local model, then the Windows
+voice. It never uses the hosted engine, because the service holds no key and
+never reaches a secret store. Hosted speech belongs to interactive sessions
+where a key is supplied for that session.
+
 ## What gets spoken
 
 Slack text is written for eyes. `flanders/flanders_speech.py` turns it into speech:

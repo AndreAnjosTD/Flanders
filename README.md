@@ -73,13 +73,17 @@ it alive.
 
 ## 🎚️ The voice ladder
 
-Three engines, tried in order, so a network hiccup never leaves the room silent:
+Three engines, with one rule about where each is allowed:
 
-| Order | Engine | Notes |
+| Order | Engine | Used by |
 |---|---|---|
-| 1 | **Hosted** — Fish Audio `s2.1-pro-free` | Needs a key; no API credit required |
-| 2 | **Local** — Fish Speech 1.5 | Offline, free, cloned from the reference sample; slower |
-| 3 | **Fallback** — Windows SAPI | Robotic, but always there |
+| 1 | **Hosted** — Fish Audio `s2.1-pro-free` | Interactive sessions, when a session key is supplied |
+| 2 | **Local** — Fish Speech 1.5 | Background Slack speech, and any session without a key |
+| 3 | **Fallback** — Windows SAPI | When the local model is not installed |
+
+Background speech is deliberately offline. The service never holds a key and
+never reaches a secret store, so spoken Slack messages always use the local
+voice, even if a key happens to be present in the environment.
 
 ## 📋 Requirements
 

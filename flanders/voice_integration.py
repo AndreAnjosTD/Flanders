@@ -111,6 +111,10 @@ class FlandersVoice:
             return "hosted"
         if requested == "sapi":
             return "sapi"
+        if requested == "offline":
+            # Background speech: local when available, otherwise the Windows
+            # voice. Never the hosted engine, which needs a session key.
+            return "local" if self._local_ready() else "sapi"
         if requested != "auto":
             raise ValueError(f"unknown engine: {requested}")
 

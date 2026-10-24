@@ -126,9 +126,11 @@ def main(argv: list[str]) -> int:
 
     from flanders.voice_integration import FlandersVoice
 
-    voice = FlandersVoice(engine=os.environ.get("FLANDERS_ENGINE", "auto"))
+    # Background speech is offline by design: the hosted engine requires a
+    # session key, and the service must never reach the vault on its own.
+    voice = FlandersVoice(engine="offline")
     heartbeat("starting")
-    log(f"speaker started (pid {os.getpid()})")
+    log(f"speaker started (pid {os.getpid()}) engine={voice.engine}")
 
     # Speak deliberately blocks for seconds per line, so prove liveness from a
     # separate thread; otherwise the service thinks the speaker died mid-sentence
