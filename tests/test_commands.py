@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import voice_integration as voice  # noqa: E402
+from flanders import voice_integration as voice  # noqa: E402
 
 
 class FakeVoice:

@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import flanders_speech as speech  # noqa: E402
+from flanders import flanders_speech as speech  # noqa: E402
 
 CASES: list[tuple[str, str]] = [
     # Decorations disappear.
