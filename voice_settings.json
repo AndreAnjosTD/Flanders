@@ -1,0 +1,9 @@
+{
+  "model": "s2.1-pro-free",
+  "voice_id": "8ca8ea05a29548758a9085747db19879",
+  "speed": 1.0,
+  "temperature": 0.75,
+  "top_p": 0.7,
+  "style": "[warmly]",
+  "audio_device": ""
+}

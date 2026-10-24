@@ -1,0 +1,31 @@
+# Python runtime
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local voice model and third-party checkout.
+# Large; recreate with setup_local.ps1.
+fish-speech/
+checkpoints/
+*.pth
+*.safetensors
+
+# Secrets - never commit these
+fish_audio_key.txt
+.env
+*.key
+
+# Runtime state (pids, locks, logs, heartbeats)
+state/
+
+# Generated audio and reference media.
+# fetch_reference.py rebuilds the reference; the test clips are disposable.
+tests/voice/
+references/*.wav
+references/*.mp3
+
+# Logs and scratch output
+*.log
+voice_output.txt
+task_session.md
