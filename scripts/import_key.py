@@ -107,8 +107,32 @@ def session_status() -> int:
     return 1
 
 
+def notify_renewal(reason: str) -> None:
+    """Ask Flanders to say the renewal notice out loud.
+
+    Never let the notice break the script: if speech is unavailable, the printed
+    line still carries the same instruction.
+    """
+    line = (
+        "Okily dokily, captain! Proton vault access needs renewing. "
+        "When you are ready, run the import key script with the store token option."
+    )
+    print(f"renewal needed ({reason})")
+    print("  run: .\\.venv\\Scripts\\python.exe scripts\\import_key.py --store-token")
+    try:
+        subprocess.run(
+            [sys.executable, str(ROOT / "flanders" / "flanders_say.py"), line],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+    except Exception:  # noqa: BLE001 - the notice must never be fatal
+        pass
+
+
 def import_from_vault() -> int:
     if not ensure_session():
+        notify_renewal("vault session could not be established")
         return 1
 
     result = run(
@@ -119,7 +143,9 @@ def import_from_vault() -> int:
         env=session_env(),
     )
     if result.returncode != 0:
-        print("vault read failed:", result.stderr.strip()[:200])
+        detail = result.stderr.strip()[:200] or "the vault refused the read"
+        print("vault read failed:", detail)
+        notify_renewal(detail)
         return 1
 
     key = result.stdout.strip()

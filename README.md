@@ -230,6 +230,10 @@ The hosted voice takes its key from one of two places:
    that state, and `--store-token` replaces the bootstrap token if it is ever
    revoked. `--forget` removes the cached key.
 
+   If access cannot be established at all, the import fails loudly: the exact
+   command is printed **and Flanders says out loud** that vault access needs
+   renewing. A renewal problem is never silent.
+
    Vault expiry never affects speech: the key is already cached, so the hosted
    voice keeps working while the Proton session is dormant.
 
