@@ -38,6 +38,9 @@ import wave
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
+
 REPO = ROOT / "fish-speech"
 LLAMA_DIR = REPO / "checkpoints" / "fish-speech-1.5"
 DECODER_WEIGHTS = LLAMA_DIR / "firefly-gan-vq-fsq-8x1024-21hz-generator.pth"

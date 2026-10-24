@@ -11,10 +11,10 @@ the platform already serves with Drama 3:
     https://fish.audio/m/8ca8ea05a29548758a9085747db19879/
 
 Requirements:
-    A Fish Audio API key, supplied in the environment for the session:
-    set FISH_API_KEY (or FISH_AUDIO_API_KEY). No key is written to disk, and
-    the Proton vault is only read with the captain's explicit consent, never
-    automatically.
+    A Fish Audio API key, from the environment for the session
+    (FISH_API_KEY / FISH_AUDIO_API_KEY) or from the Windows Credential Manager.
+    Never a file. The Proton Pass vault is read only by a deliberate, consented
+    action in scripts/import_key.py.
     Create a key at https://fish.audio/app/api-keys/
 
 Usage:
@@ -49,6 +49,9 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
+
 SETTINGS_FILE = ROOT / "voice_settings.json"
 
 API_URL = "https://api.fish.audio/v1/tts"
@@ -107,17 +110,14 @@ def _tuned(name: str, env_name: str, default):
 
 
 def _api_key() -> str | None:
-    """The hosted key, supplied per session in the environment.
+    """The hosted key: this session's environment, else the OS credential store.
 
-    Deliberately no file and no vault lookup: a secret is never stored on disk,
-    and reaching the Proton vault requires the captain's explicit consent, so it
-    is never automatic.
+    Never a file, and never a Proton Pass lookup. The vault is only read by a
+    deliberate, consented action in scripts/import_key.py.
     """
-    for name in ("FISH_API_KEY", "FISH_AUDIO_API_KEY"):
-        key = os.environ.get(name, "").strip()
-        if key:
-            return key
-    return None
+    from flanders import secrets
+
+    return secrets.get_secret("fish_audio")
 
 
 def key_fingerprint(key: str) -> str:
@@ -179,8 +179,8 @@ def synthesize(
     key = _api_key()
     if not key:
         print(
-            "No Fish Audio API key in the environment. Set FISH_API_KEY for this "
-            "session; no key is stored on disk."
+            "No Fish Audio API key found. Set FISH_API_KEY for this session, or "
+            "import one into the credential store with scripts/import_key.py."
         )
         return None
 
@@ -314,8 +314,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.check:
+        from flanders import secrets
+
         key = _api_key()
-        print(f"API key: {'present ' + key_fingerprint(key) if key else 'missing (set FISH_API_KEY)'}")
+        print(f"API key: {secrets.describe('fish_audio')}")
         print(f"Voice id: {args.voice}")
         print(f"Model: {args.model or _model()}")
         return 0 if key else 1

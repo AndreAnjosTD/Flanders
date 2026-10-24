@@ -49,10 +49,14 @@ Re-running is safe; finished steps are skipped.
 
 ## How the voice is chosen
 
-`flanders/voice_integration.py` picks `hosted` when a key is present, then `local` when
-the weights and reference are present, then the Windows voice. If a hosted
-request fails, the local voice takes over for that line. Force one with
-`--engine local|hosted|sapi`.
+`flanders/voice_integration.py` reads `engine` from `voice_settings.json`:
+
+- `online` (default) — hosted Fish Audio voice, then the local model, then the
+  Windows voice.
+- `offline` — local model, then the Windows voice.
+
+A hosted request that fails falls back to the local voice for that line. Override
+per run with `--engine online|offline|hosted|local|sapi`.
 
 ## Hosted voice (Drama 3)
 

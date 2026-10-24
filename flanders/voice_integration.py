@@ -28,6 +28,7 @@ Programmatic use:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -46,6 +47,33 @@ try:
     from flanders import flanders_local_tts
 except Exception:  # noqa: BLE001
     flanders_local_tts = None
+
+SETTINGS_FILE = ROOT / "voice_settings.json"
+
+# What a user writes in voice_settings.json, and what it means internally.
+_ENGINE_ALIASES = {
+    "online": "hosted",
+    "remote": "hosted",
+    "hosted": "hosted",
+    "offline": "offline",
+    "local": "local",
+    "sapi": "sapi",
+    "auto": "auto",
+}
+
+
+def configured_engine() -> str:
+    """The engine chosen in voice_settings.json.
+
+    A user picks "online" or "offline"; the hosted voice is the default so the
+    slow local model is opt-in rather than a surprise.
+    """
+    try:
+        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return "hosted"
+    value = str(data.get("engine") or "hosted").strip().lower()
+    return _ENGINE_ALIASES.get(value, "hosted")
 
 
 HELP_TEXT = """\
@@ -75,12 +103,13 @@ Merge posture
 
 
 class FlandersVoice:
-    def __init__(self, engine: str = "auto", device: str | None = None) -> None:
+    def __init__(self, engine: str | None = None, device: str | None = None) -> None:
         self.device = device
         self._local = None
         self.last_task: str | None = None
         self.last_classification: str | None = None
-        self.engine = self._resolve_engine(engine)
+        # Explicit argument wins, then voice_settings.json, then the hosted voice.
+        self.engine = self._resolve_engine(engine or configured_engine())
 
     # -- engine selection -------------------------------------------------
 
@@ -105,10 +134,15 @@ class FlandersVoice:
         return fish_audio_tts is not None and bool(fish_audio_tts._api_key())
 
     def _resolve_engine(self, requested: str) -> str:
+        requested = _ENGINE_ALIASES.get(str(requested).strip().lower(), requested)
         if requested == "local":
             return "local"
         if requested == "hosted":
-            return "hosted"
+            # Prefer the hosted voice, but never strand a message when no key is
+            # present; fall through to the local model, then the Windows voice.
+            if self._hosted_ready():
+                return "hosted"
+            return "local" if self._local_ready() else "sapi"
         if requested == "sapi":
             return "sapi"
         if requested == "offline":
@@ -293,7 +327,7 @@ def handle_line(voice, line: str):
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Flanders voice and commands.")
     parser.add_argument("text", nargs="*", help="Say this and exit.")
-    parser.add_argument("--engine", default="auto", choices=["auto", "local", "hosted", "sapi"])
+    parser.add_argument("--engine", default=None, choices=["auto", "online", "offline", "hosted", "local", "sapi"], help="Override voice_settings.json.")
     parser.add_argument("--device", default=None, help="cuda or cpu for the local engine.")
     parser.add_argument("--save", metavar="PATH", help="Save the audio instead of playing.")
     args = parser.parse_args(argv)

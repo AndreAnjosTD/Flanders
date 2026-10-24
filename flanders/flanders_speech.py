@@ -18,6 +18,11 @@ import argparse
 import html
 import re
 import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
 
 # Icons that carry meaning in this channel are spoken as a short word. Icons
 # that are pure decoration are dropped, because hearing "wave" adds nothing.

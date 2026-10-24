@@ -126,9 +126,9 @@ def main(argv: list[str]) -> int:
 
     from flanders.voice_integration import FlandersVoice
 
-    # Background speech is offline by design: the hosted engine requires a
-    # session key, and the service must never reach the vault on its own.
-    voice = FlandersVoice(engine="offline")
+    # Engine comes from voice_settings.json (online by default), so a user
+    # switches between remote and local with one config value.
+    voice = FlandersVoice()
     heartbeat("starting")
     log(f"speaker started (pid {os.getpid()}) engine={voice.engine}")
 

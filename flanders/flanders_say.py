@@ -55,9 +55,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--file", help="Read the text from this file.")
     parser.add_argument(
         "--engine",
-        default="auto",
-        choices=["auto", "hosted", "local", "sapi"],
-        help="Which voice to use.",
+        default=None,
+        choices=["auto", "online", "offline", "hosted", "local", "sapi"],
+        help="Override voice_settings.json.",
     )
     args = parser.parse_args(argv)
 

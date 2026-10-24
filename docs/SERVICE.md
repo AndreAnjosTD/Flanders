@@ -26,10 +26,10 @@ If nobody is logged on, the service keeps listening and queues jobs. The speaker
 starts as soon as a session appears. Jobs older than 10 minutes are dropped
 rather than replayed, so a long logout does not produce a wall of speech.
 
-The speaker always runs an **offline** engine — the local model, then the Windows
-voice. It never uses the hosted engine, because the service holds no key and
-never reaches a secret store. Hosted speech belongs to interactive sessions
-where a key is supplied for that session.
+The speaker uses the engine chosen in `voice_settings.json` — **online** by
+default, which is the hosted voice, then the local model, then the Windows voice.
+The key comes from the environment or the encrypted credential store; the service
+never reaches a secret vault on its own.
 
 ## What gets spoken
 

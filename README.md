@@ -71,19 +71,25 @@ split in two: **the service listens**, and a small companion in the logged-on
 session **does the talking**. The service starts that companion itself and keeps
 it alive.
 
-## 🎚️ The voice ladder
+## 🎚️ Choosing the voice
 
-Three engines, with one rule about where each is allowed:
+One value in `voice_settings.json` decides it:
 
-| Order | Engine | Used by |
-|---|---|---|
-| 1 | **Hosted** — Fish Audio `s2.1-pro-free` | Interactive sessions, when a session key is supplied |
-| 2 | **Local** — Fish Speech 1.5 | Background Slack speech, and any session without a key |
-| 3 | **Fallback** — Windows SAPI | When the local model is not installed |
+```json
+{ "engine": "online" }
+```
 
-Background speech is deliberately offline. The service never holds a key and
-never reaches a secret store, so spoken Slack messages always use the local
-voice, even if a key happens to be present in the environment.
+| Value | Behaviour |
+|---|---|
+| `online` *(default)* | Hosted Fish Audio voice. Falls back to the local model when no key is available, then to the Windows voice |
+| `offline` | Local Fish Speech model. Falls back to the Windows voice if the model is missing |
+| `auto` | Same as `online` |
+
+The hosted voice is the default because it is far faster than the local model.
+Switching to `offline` keeps everything on the machine, at the cost of speed.
+
+The key itself is never a file: it comes from `FISH_API_KEY` for a session, or
+from the encrypted Windows credential store.
 
 ## 📋 Requirements
 
@@ -200,20 +206,30 @@ The package runs directly (`python flanders\voice_integration.py`) or as a modul
 ## 🔐 Credentials
 
 No credentials live in this repository, and the application writes none to disk.
-The hosted voice reads its key from the environment for the length of one
-session:
+The hosted voice takes its key from one of two places:
 
-```powershell
-$env:FISH_API_KEY = "<the-key>"
-```
+1. **This session's environment** — nothing persisted:
 
-The key exists only inside that process tree. It is never written to a file, and
-the Proton vault is read only with explicit consent — never automatically.
+   ```powershell
+   $env:FISH_API_KEY = "<the-key>"
+   ```
 
-When no key is present, the local voice takes over. The free model still requires
-a key: an unauthenticated request is rejected. It does **not** require API
-credit — the model is chosen with the `model` header, and omitting that header is
-the only thing that falls back to a paid model and reports insufficient credit.
+2. **The Windows Credential Manager** — encrypted at rest by DPAPI, per user.
+   Populate it with one deliberate, consented read of the vault:
+
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\import_key.py --from-vault
+   .\.venv\Scripts\python.exe scripts\import_key.py --status
+   .\.venv\Scripts\python.exe scripts\import_key.py --forget
+   ```
+
+No other path in the application can reach the Proton vault, and only a SHA-256
+fingerprint is ever printed.
+
+The free model still requires a key: an unauthenticated request is rejected. It
+does **not** require API credit — the model is chosen with the `model` header,
+and omitting that header is the only thing that falls back to a paid model and
+reports insufficient credit.
 
 ## ⚖️ A note on the voice
 

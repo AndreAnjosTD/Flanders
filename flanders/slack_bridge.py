@@ -248,7 +248,7 @@ def speak(text):
 
         with _speak_lock:
             if _voice is None:
-                _voice = FlandersVoice(engine=os.environ.get("FLANDERS_ENGINE", "auto"))
+                _voice = FlandersVoice()
             used = _voice.speak(cleaned)
         if used in ("failed", "nothing"):
             raise RuntimeError(f"voice engine {used}")
