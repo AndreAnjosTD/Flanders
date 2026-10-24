@@ -51,11 +51,26 @@ Plain text is read aloud but never answered. Only the commands above act.
 .\.venv\Scripts\python.exe tests\test_commands.py
 ```
 
+## Project layout
+
+```
+docs/         guides: local voice, service, and the agent skill
+scripts/      setup and operations (venv, model, API key, service install)
+tools/        diagnostics: audio devices, voice variants, benchmarks
+tests/        automated checks
+references/   voice-clone transcript
+*.py          the application modules, kept at the root
+```
+
+The core modules stay at the project root on purpose: the installed Windows
+service and firstmate call them by exact path, so moving them would break a
+running listener.
+
 ## Documentation
 
-- `LOCAL_VOICE.md` - offline model setup, tuning, and cost notes
-- `SERVICE.md` - the Windows service, and why there are two processes
-- `SKILL.md` - how firstmate drives the character
+- [`docs/LOCAL_VOICE.md`](docs/LOCAL_VOICE.md) - offline model setup, tuning, and cost notes
+- [`docs/SERVICE.md`](docs/SERVICE.md) - the Windows service, and why there are two processes
+- [`docs/SKILL.md`](docs/SKILL.md) - how firstmate drives the character
 
 ## Credentials
 

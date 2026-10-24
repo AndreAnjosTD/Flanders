@@ -84,7 +84,7 @@ environment variables. The device therefore lives in `voice_settings.json`:
 { "audio_device": "Headset Earphone (Jabra EVOLVE LINK MS)" }
 ```
 
-Either a name fragment or a numeric index from `audio_devices.py --list` works.
+Either a name fragment or a numeric index from `tools/audio_devices.py --list` works.
 Leave it empty to use the Windows default output.
 
 Set it with:

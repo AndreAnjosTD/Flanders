@@ -23,7 +23,7 @@ three times slower than real time on this machine.
 ## Setup
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File setup_local.ps1
+powershell -ExecutionPolicy Bypass -File scripts\setup_local.ps1
 ```
 
 Re-running is safe; finished steps are skipped.
@@ -63,7 +63,7 @@ instant and higher quality, and it needs an API key plus a small prepaid balance
 2. Save and verify it:
 
 ```powershell
-.\.venv\Scripts\python.exe set_fish_key.py <your-key>
+.\.venv\Scripts\python.exe scripts\set_fish_key.py <your-key>
 ```
 
 The key is written to `fish_audio_key.txt` and read automatically. You can also
@@ -102,7 +102,7 @@ This is the captain's preferred "neighbourly" setting: warm and conversation.
 - `style`: an optional bracket tag such as `[cheerful]` or `[warmly]`.
 - `model`: keep `s2.1-pro-free` for zero cost, or `drama-3` for the flagship.
 
-To hear a comparison, run `voice_variants.py`. It saves four readings of the
+To hear a comparison, run `tools/voice_variants.py`. It saves four readings of the
 same line in `tests/voice/`:
 
 | Variant | Character |
