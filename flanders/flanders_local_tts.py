@@ -34,7 +34,7 @@ import argparse
 import os
 import sys
 import tempfile
-import wave
+from contextlib import suppress
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -126,14 +126,11 @@ class LocalFishVoice:
         """Generate speech for `text` and write a WAV file."""
         import numpy as np
         import soundfile as sf
-
         from fish_speech.utils.schema import ServeReferenceAudio, ServeTTSRequest
 
         request = ServeTTSRequest(
             text=text,
-            references=[
-                ServeReferenceAudio(audio=self.reference_audio, text=self.reference_text)
-            ],
+            references=[ServeReferenceAudio(audio=self.reference_audio, text=self.reference_text)],
             reference_id=None,
             max_new_tokens=1024,
             chunk_length=200,
@@ -173,22 +170,25 @@ class LocalFishVoice:
         sf.write(str(path), audio, sample_rate)
         return path
 
-    def speak(self, text: str, keep: bool = False) -> Path | None:
-        """Generate and play `text`. Returns the path when keep=True."""
-        out = None
-        if keep:
+    def speak(
+        self,
+        text: str,
+        keep: bool = False,
+        save_path: str | os.PathLike[str] | None = None,
+    ) -> Path | None:
+        """Generate and play `text`. Returns the path when the audio is kept."""
+        out = save_path
+        if out is None and keep:
             safe = "".join(c if c.isalnum() else "_" for c in text[:40]).strip("_")
-            out = ROOT / f"flanders_{safe or 'line'}.wav"
+            out = ROOT / "state" / "audio" / f"{safe or 'line'}.wav"
 
         path = self.synthesize(text, out_path=out)
         _play(path)
-        if not keep:
-            try:
-                path.unlink()
-            except OSError:
-                pass
-            return None
-        return path
+        if save_path is not None or keep:
+            return path
+        with suppress(OSError):
+            path.unlink()
+        return None
 
 
 def check() -> int:
@@ -204,7 +204,7 @@ def check() -> int:
         print(f"torch: {torch.__version__} cuda={torch.cuda.is_available()}")
         if torch.cuda.is_available():
             print(f"gpu  : {torch.cuda.get_device_name(0)}")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"torch unavailable in this interpreter: {exc}")
     return 0 if all("MISS" not in line for line in problems) else 1
 

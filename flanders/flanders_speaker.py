@@ -104,7 +104,7 @@ def drain(voice) -> int:
             used = voice.speak(text)
             log(f"spoke via {used}: {text[:80]}")
             spoken += 1
-        except Exception as exc:  # noqa: BLE001 - one bad line must not stop the queue
+        except Exception as exc:
             log(f"speak failed ({exc}): {text[:80]}")
 
         job.unlink(missing_ok=True)

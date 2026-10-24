@@ -31,9 +31,9 @@ REGULAR = r"C:\Windows\Fonts\segoeui.ttf"
 
 # Same three stops as the old SVG, along the diagonal.
 STOPS = [
-    (0.00, (15, 32, 39)),    # #0f2027
-    (0.55, (32, 58, 67)),    # #203a43
-    (1.00, (44, 83, 100)),   # #2c5364
+    (0.00, (15, 32, 39)),  # #0f2027
+    (0.55, (32, 58, 67)),  # #203a43
+    (1.00, (44, 83, 100)),  # #2c5364
 ]
 
 # Where the portrait card sits.
@@ -76,9 +76,7 @@ def portrait() -> Image.Image:
 
 def rounded_mask(width: int, height: int, radius: int) -> Image.Image:
     mask = Image.new("L", (width, height), 0)
-    ImageDraw.Draw(mask).rounded_rectangle(
-        (0, 0, width - 1, height - 1), radius=radius, fill=255
-    )
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, width - 1, height - 1), radius=radius, fill=255)
     return mask
 
 

@@ -1,0 +1,40 @@
+# Flanders is an application, not a distributable library, so this file holds
+# tooling configuration rather than packaging metadata. The project runs from
+# the checkout: `python -m flanders.voice_integration`.
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".venv", "fish-speech", "checkpoints"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # import sorting
+    "B",    # bugbear
+    "UP",   # pyupgrade
+    "SIM",  # simplify
+    "C4",   # comprehensions
+    "RET",  # return style
+    "ARG",  # unused arguments
+    "PTH",  # pathlib
+    "S",    # bandit
+    "DTZ",  # datetime timezone
+    "RUF",  # ruff-specific
+]
+ignore = [
+    # Timestamps here are deliberately local wall-clock time in log lines and
+    # in the "HH:MM" stamp shown in the terminal. Storing UTC would make the
+    # logs harder to line up with what the captain just did.
+    "DTZ005",
+    "DTZ006",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# A CLI script that must be runnable from the repository root has to add the
+# root to sys.path before importing the package, so E402 is expected there.
+"tools/*.py" = ["E402"]
+"tests/manual/*.py" = ["E402"]
+"scripts/*.py" = ["E402"]

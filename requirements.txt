@@ -1,6 +1,6 @@
 # Core runtime for Flanders: audio playback, the speech fallback, and the
 # Windows service. The offline voice has its own heavier set in
-# requirements-local.txt.
+# requirements-local.txt; linting and banner tooling live in requirements-dev.txt.
 
 numpy>=1.26,<2
 soundfile>=0.12
@@ -9,6 +9,3 @@ pyttsx3>=2.90
 
 # Windows only: service host, session hand-off, and the SAPI fallback.
 pywin32>=306; sys_platform == "win32"
-
-# Only needed to rebuild the README banner (tools/make_banner.py).
-Pillow>=10.0

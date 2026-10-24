@@ -72,13 +72,13 @@ _EMOJI_CODE = re.compile(r":([a-z0-9_+\-]+):")
 # Emoji, dingbats, arrows, variation selectors and joiners.
 _EMOJI_CHAR = re.compile(
     "["
-    "\U0001F300-\U0001FAFF"
-    "\U0001F000-\U0001F2FF"
-    "\U00002600-\U000027BF"
-    "\U0001F1E6-\U0001F1FF"
-    "\u2190-\u21FF"
-    "\u2B00-\u2BFF"
-    "\uFE0F\u200D\u20E3"
+    "\U0001f300-\U0001faff"
+    "\U0001f000-\U0001f2ff"
+    "\U00002600-\U000027bf"
+    "\U0001f1e6-\U0001f1ff"
+    "\u2190-\u21ff"
+    "\u2b00-\u2bff"
+    "\ufe0f\u200d\u20e3"
     "]+"
 )
 
@@ -100,7 +100,7 @@ _REPEAT_PUNCT = re.compile(r"([!?.,])\1{1,}")
 _EMPTY_PAIRS = re.compile(r"[\(\[\{]\s*[\)\]\}]")
 _OPEN_SPACE = re.compile(r"\(\s+")
 _CLOSE_SPACE = re.compile(r"\s+\)")
-_LEAD_JUNK = re.compile(r"^[\s\-–—,.;:|]+")
+_LEAD_JUNK = re.compile(r"^[\s\-–—,.;:|]+")  # noqa: RUF001 - the dashes are the point
 _SPACES = re.compile(r"[ \t\u00A0]+")
 _BLANK_LINES = re.compile(r"\n{2,}")
 
@@ -116,24 +116,82 @@ _BARE_COMMAND = re.compile(
     re.IGNORECASE,
 )
 # "(1 minute)" style metadata left behind after a clause is removed.
-_DURATION_PAREN = re.compile(
-    r"\(\s*\d+\s*(?:minute|hour|second|day)s?\s*\)", re.IGNORECASE
-)
+_DURATION_PAREN = re.compile(r"\(\s*\d+\s*(?:minute|hour|second|day)s?\s*\)", re.IGNORECASE)
 
 # Short, content-free replies. Anything with real words in it is not an
 # acknowledgement and still gets spoken.
 _ACK_PHRASES = {
-    "ok", "okay", "k", "kk", "thanks", "thank you", "thx", "ty", "cheers",
-    "nice", "cool", "great", "awesome", "perfect", "alright", "got it",
-    "sounds good", "good", "np", "no problem", "all good", "lol", "haha",
-    "yes", "yeah", "yep", "yup", "no", "nope", "sure", "amazing", "brilliant",
-    "good job", "well done", "nice one", "much obliged", "okily dokily",
+    "ok",
+    "okay",
+    "k",
+    "kk",
+    "thanks",
+    "thank you",
+    "thx",
+    "ty",
+    "cheers",
+    "nice",
+    "cool",
+    "great",
+    "awesome",
+    "perfect",
+    "alright",
+    "got it",
+    "sounds good",
+    "good",
+    "np",
+    "no problem",
+    "all good",
+    "lol",
+    "haha",
+    "yes",
+    "yeah",
+    "yep",
+    "yup",
+    "no",
+    "nope",
+    "sure",
+    "amazing",
+    "brilliant",
+    "good job",
+    "well done",
+    "nice one",
+    "much obliged",
+    "okily dokily",
 }
 _ACK_WORDS = {
-    "ok", "okay", "k", "kk", "thanks", "thank", "thx", "ty", "cheers", "nice",
-    "cool", "great", "awesome", "perfect", "alright", "good", "np", "lol",
-    "haha", "yes", "yeah", "yep", "yup", "no", "nope", "sure", "amazing",
-    "brilliant", "captain", "flanders", "neighborino", "sir",
+    "ok",
+    "okay",
+    "k",
+    "kk",
+    "thanks",
+    "thank",
+    "thx",
+    "ty",
+    "cheers",
+    "nice",
+    "cool",
+    "great",
+    "awesome",
+    "perfect",
+    "alright",
+    "good",
+    "np",
+    "lol",
+    "haha",
+    "yes",
+    "yeah",
+    "yep",
+    "yup",
+    "no",
+    "nope",
+    "sure",
+    "amazing",
+    "brilliant",
+    "captain",
+    "flanders",
+    "neighborino",
+    "sir",
 }
 _PUNCT_ONLY = re.compile(r"[^\w\s']")
 
@@ -148,9 +206,7 @@ def _drop_command_help(text: str) -> str:
     cleaned = _BARE_COMMAND.sub(" ", cleaned)
     cleaned = _DURATION_PAREN.sub(" ", cleaned)
     cleaned = _SPACES.sub(" ", cleaned)
-    cleaned = cleaned.strip()
-    cleaned = _LEAD_JUNK.sub("", cleaned)
-    return cleaned
+    return _LEAD_JUNK.sub("", cleaned.strip())
 
 
 def _is_acknowledgement(text: str) -> bool:
@@ -292,7 +348,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--preview", action="store_true", help="show recent channel messages")
     parser.add_argument("--limit", type=int, default=10)
     parser.add_argument(
-        "--raw-form", action="store_true",
+        "--raw-form",
+        action="store_true",
         help="show the cleaned text before noise filtering",
     )
     args = parser.parse_args(argv)

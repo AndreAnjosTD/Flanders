@@ -30,7 +30,7 @@ def with_soundfile() -> bool:
 
     try:
         audio, sample_rate = sf.read(str(SRC), dtype="float32", always_2d=True)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"soundfile could not read the sample: {exc}")
         return False
 
@@ -68,7 +68,9 @@ def with_ffmpeg() -> bool:
         "pcm_s16le",
         str(DST),
     ]
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(  # noqa: S603 - fixed exe, list args, no shell
+        command, capture_output=True, text=True, check=False
+    )
     if result.returncode != 0:
         print(result.stderr[-800:])
         return False
@@ -81,7 +83,7 @@ def duration_seconds() -> float | None:
 
         info = sf.info(str(DST))
         return info.frames / info.samplerate
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -93,7 +95,8 @@ def main() -> int:
 
     if DST.exists():
         seconds = duration_seconds()
-        print(f"Already prepared: {DST} ({seconds:.1f}s)" if seconds else f"Already prepared: {DST}")
+        detail = f" ({seconds:.1f}s)" if seconds else ""
+        print(f"Already prepared: {DST}{detail}")
         return 0
 
     ok = with_soundfile() or with_ffmpeg()

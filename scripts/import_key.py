@@ -28,13 +28,14 @@ import getpass
 import os
 import subprocess
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from flanders import secret_store  # noqa: E402
+from flanders import secret_store
 
 VAULT_NAME = "NodeHug"
 ITEM_TITLE = "Audio Fish"
@@ -55,7 +56,10 @@ def session_env() -> dict[str, str]:
 
 
 def run(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run([str(pass_cli()), *args], capture_output=True, text=True, env=env)
+    """Run one pass-cli command with a fixed argument list and no shell."""
+    return subprocess.run(  # noqa: S603 - fixed exe, list args, no shell
+        [str(pass_cli()), *args], capture_output=True, text=True, env=env
+    )
 
 
 def ensure_session() -> bool:
@@ -119,15 +123,15 @@ def notify_renewal(reason: str) -> None:
     )
     print(f"renewal needed ({reason})")
     print("  run: .\\.venv\\Scripts\\python.exe scripts\\import_key.py --store-token")
-    try:
-        subprocess.run(
+    with suppress(Exception):
+        # Speech is a courtesy here: a failure must never change the exit code.
+        subprocess.run(  # noqa: S603 - our own interpreter and script, no shell
             [sys.executable, str(ROOT / "flanders" / "flanders_say.py"), line],
             capture_output=True,
             text=True,
             timeout=180,
+            check=False,
         )
-    except Exception:  # noqa: BLE001 - the notice must never be fatal
-        pass
 
 
 def import_from_vault() -> int:
@@ -136,10 +140,14 @@ def import_from_vault() -> int:
         return 1
 
     result = run(
-        "item", "view",
-        "--vault-name", VAULT_NAME,
-        "--item-title", ITEM_TITLE,
-        "--field", FIELD,
+        "item",
+        "view",
+        "--vault-name",
+        VAULT_NAME,
+        "--item-title",
+        ITEM_TITLE,
+        "--field",
+        FIELD,
         env=session_env(),
     )
     if result.returncode != 0:
@@ -165,10 +173,18 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="Manage the Fish Audio key.")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--status", action="store_true", help="say where the key comes from")
-    group.add_argument("--from-vault", action="store_true", help="read the vault once and store the key")
+    group.add_argument(
+        "--from-vault", action="store_true", help="read the vault once and store the key"
+    )
     group.add_argument("--forget", action="store_true", help="delete the stored key")
-    group.add_argument("--session", action="store_true", help="report the vault session, re-authenticating if needed")
-    group.add_argument("--store-token", action="store_true", help="replace the bootstrap token (hidden prompt)")
+    group.add_argument(
+        "--session",
+        action="store_true",
+        help="report the vault session, re-authenticating if needed",
+    )
+    group.add_argument(
+        "--store-token", action="store_true", help="replace the bootstrap token (hidden prompt)"
+    )
     args = parser.parse_args(argv)
 
     if args.status:

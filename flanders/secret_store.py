@@ -2,12 +2,17 @@
 
 A secret is never written to a file. Resolution order:
 
-    1. the environment, for a single session (FISH_API_KEY / FISH_AUDIO_API_KEY)
+    1. the environment, for a single session
     2. the Windows Credential Manager, encrypted at rest by DPAPI, per user
 
+Each secret has its own environment variable names, so asking for one secret can
+never quietly hand back another. Only a salted-short SHA-256 fingerprint is ever
+printed or logged; the value itself never leaves this module except to the caller
+that needs it.
+
 Reading Proton Pass is deliberately *not* part of this module. That vault is only
-touched by a deliberate, consented action (see scripts/import_key.py), so no
-automatic path can reach it.
+touched by a deliberate, consented action (see ``scripts/import_key.py``), so no
+automatic code path can reach it.
 """
 
 from __future__ import annotations
@@ -18,11 +23,21 @@ import sys
 
 SERVICE = "flanders"
 DEFAULT_NAME = "fish_audio"
-ENV_NAMES = ("FISH_API_KEY", "FISH_AUDIO_API_KEY")
+
+# Secret name -> the environment variables that may carry it for one session.
+ENV_NAMES: dict[str, tuple[str, ...]] = {
+    "fish_audio": ("FISH_API_KEY", "FISH_AUDIO_API_KEY"),
+    "proton_pass_pat": ("PROTON_PASS_PERSONAL_ACCESS_TOKEN",),
+}
 
 
 def fingerprint(value: str) -> str:
-    """A one-way reference to a secret, safe to print or log."""
+    """A one-way reference to a secret, safe to print or log.
+
+    This is identification, not authentication: twelve hex characters of a
+    SHA-256 digest are plenty to tell two keys apart and useless for recovering
+    either one.
+    """
     return "sha256:" + hashlib.sha256(value.encode()).hexdigest()[:12]
 
 
@@ -31,7 +46,8 @@ def _target(name: str) -> str:
 
 
 def from_environment(name: str = DEFAULT_NAME) -> str | None:
-    for env_name in ENV_NAMES:
+    """The secret from this session's environment, if one of its variables is set."""
+    for env_name in ENV_NAMES.get(name, ()):
         value = os.environ.get(env_name, "").strip()
         if value:
             return value
@@ -50,7 +66,7 @@ def from_vault(name: str = DEFAULT_NAME) -> str | None:
 
     try:
         credential = win32cred.CredRead(_target(name), win32cred.CRED_TYPE_GENERIC)
-    except Exception:  # noqa: BLE001 - absent entry is a normal state
+    except Exception:
         return None
 
     blob = credential.get("CredentialBlob")
@@ -61,7 +77,7 @@ def from_vault(name: str = DEFAULT_NAME) -> str | None:
 
 
 def get_secret(name: str = DEFAULT_NAME) -> str | None:
-    """Env first, then the OS credential store. Never a file."""
+    """Environment first, then the OS credential store. Never a file."""
     return from_environment(name) or from_vault(name)
 
 
@@ -90,6 +106,7 @@ def store_secret(value: str, name: str = DEFAULT_NAME, comment: str = "") -> boo
 
 
 def delete_secret(name: str = DEFAULT_NAME) -> bool:
+    """Remove a stored secret. False when it was not there."""
     if sys.platform != "win32":
         return False
     try:
@@ -97,7 +114,7 @@ def delete_secret(name: str = DEFAULT_NAME) -> bool:
 
         win32cred.CredDelete(_target(name), win32cred.CRED_TYPE_GENERIC)
         return True
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 

@@ -6,6 +6,7 @@ manual recording is required to get started.
 """
 
 import json
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -15,7 +16,7 @@ OUT = Path(__file__).resolve().parent.parent / "references"
 API = f"https://api.fish.audio/model/{MODEL_ID}"
 
 
-def main() -> None:
+def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
 
     with urllib.request.urlopen(API, timeout=30) as response:
@@ -30,9 +31,11 @@ def main() -> None:
     audio_url = sample.get("audio")
     if not audio_url:
         raise SystemExit("Sample has no audio URL.")
+    if urllib.parse.urlsplit(audio_url).scheme != "https":
+        raise SystemExit(f"Refusing a non-HTTPS sample URL: {audio_url}")
 
     audio_path = OUT / "flanders_sample.mp3"
-    urllib.request.urlretrieve(audio_url, audio_path)
+    urllib.request.urlretrieve(audio_url, audio_path)  # noqa: S310 - https checked above
 
     text_path = OUT / "flanders_sample.txt"
     text_path.write_text(text.strip() + "\n", encoding="utf-8")
@@ -43,7 +46,8 @@ def main() -> None:
     print(f"transcript: {text_path} ({len(text.split())} words)")
     print()
     print(text)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

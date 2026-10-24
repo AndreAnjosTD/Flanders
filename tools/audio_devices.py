@@ -48,7 +48,7 @@ def list_devices() -> None:
 
 def test(device: str) -> None:
     print(f"playing three beeps on {device}")
-    target = flanders_audio._resolve(device)
+    target = flanders_audio.resolve_device(device)
     for _ in range(3):
         tone(device=target)
         time.sleep(0.15)
@@ -60,7 +60,7 @@ def sweep() -> None:
         for _ in range(count):
             try:
                 tone(device=index)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 print(f"  failed: {exc}")
                 break
             time.sleep(0.18)

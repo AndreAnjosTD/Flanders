@@ -1,34 +1,32 @@
 #!/usr/bin/env python3
-"""
-Flanders voice integration.
+"""Flanders' voice selection and the ``/flanders`` command tree.
 
-Speaks Flanders' replies through the best voice available, in this order:
+Speaks through the best engine available, in this order:
 
-1. hosted - Fish Audio Drama 3 with the Ned Flanders voice model (needs a key)
-2. local  - Fish Speech 1.5 on this machine (offline, free, cloned voice)
-3. sapi   - the built-in Windows voice (robotic last resort)
+1. ``hosted`` — Fish Audio with the Ned Flanders model (needs a key, fast)
+2. ``local``  — Fish Speech 1.5 on this machine (offline, cloned, slower)
+3. ``sapi``   — the built-in Windows voice (last resort)
 
-If the hosted voice fails, the local one takes over automatically.
-
-Every engine accepts an arbitrary string at runtime, so nothing is generated
-per phrase.
+`voice_settings.json` picks the preference (``online`` by default) and an
+explicit ``--engine`` overrides it for one run. Every engine takes an arbitrary
+string at runtime, so nothing is ever generated per phrase.
 
 Commands:
-    /flander delegate <task>   classify a task and speak the result
-    /flander help              show the command guide
-    /flander modes             show delivery modes
-    /flander status            show the last task
-    /flander quit              leave
+    /flanders delegate <task>   classify a task and speak the guidance
+    /flanders help              the command guide
+    /flanders modes             delivery modes and merge posture
+    /flanders status            the task on the desk
+    /flanders quit              leave
 
 Programmatic use:
-    from voice_integration import FlandersVoice
+    from flanders.voice_integration import FlandersVoice
     FlandersVoice().speak("Okily dokily, captain!")
 """
 
 from __future__ import annotations
 
 import argparse
-import json
+import os
 import sys
 from pathlib import Path
 
@@ -36,19 +34,18 @@ ROOT = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT))
 
-from flanders.flanders_character import classify_task, flanders_response  # noqa: E402
+from flanders import settings  # noqa: E402
+from flanders.flanders_character import classify_task, task_response  # noqa: E402
 
 try:
     from flanders import fish_audio_tts
-except Exception:  # noqa: BLE001
+except Exception:
     fish_audio_tts = None
 
 try:
     from flanders import flanders_local_tts
-except Exception:  # noqa: BLE001
+except Exception:
     flanders_local_tts = None
-
-SETTINGS_FILE = ROOT / "voice_settings.json"
 
 # What a user writes in voice_settings.json, and what it means internally.
 _ENGINE_ALIASES = {
@@ -61,29 +58,14 @@ _ENGINE_ALIASES = {
     "auto": "auto",
 }
 
-
-def configured_engine() -> str:
-    """The engine chosen in voice_settings.json.
-
-    A user picks "online" or "offline"; the hosted voice is the default so the
-    slow local model is opt-in rather than a surprise.
-    """
-    try:
-        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return "hosted"
-    value = str(data.get("engine") or "hosted").strip().lower()
-    return _ENGINE_ALIASES.get(value, "hosted")
-
-
 HELP_TEXT = """\
 Flanders command guide
 
-  /flander delegate <task>   classify the work and speak the guidance
-  /flander help              this guide
-  /flander modes             delivery modes and merge posture
-  /flander status            the task on the desk
-  /flander quit              leave Flanders' station
+  /flanders delegate <task>   classify the work and speak the guidance
+  /flanders help              this guide
+  /flanders modes             delivery modes and merge posture
+  /flanders status            the task on the desk
+  /flanders quit              leave Flanders' station
 
 Plain text is read aloud only. Only the commands above are acted on.
 """
@@ -102,7 +84,19 @@ Merge posture
 """
 
 
+def configured_engine() -> str:
+    """The engine chosen in voice_settings.json.
+
+    A user picks "online" or "offline"; the hosted voice is the default so the
+    slow local model is opt-in rather than a surprise.
+    """
+    value = settings.text("engine", "hosted").lower()
+    return _ENGINE_ALIASES.get(value, "hosted")
+
+
 class FlandersVoice:
+    """One speaking voice, with the engine chosen once at construction."""
+
     def __init__(self, engine: str | None = None, device: str | None = None) -> None:
         self.device = device
         self._local = None
@@ -114,37 +108,39 @@ class FlandersVoice:
     # -- engine selection -------------------------------------------------
 
     def _local_ready(self) -> bool:
+        """True when the offline model, torch, and the reference clip are all there."""
         if flanders_local_tts is None:
             return False
         try:
             import torch  # noqa: F401
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
+        checkpoint = ROOT / "fish-speech" / "checkpoints" / "fish-speech-1.5"
         files = [
-            ROOT / "fish-speech" / "checkpoints" / "fish-speech-1.5" / "config.json",
-            ROOT / "fish-speech" / "checkpoints" / "fish-speech-1.5" / "model.pth",
-            ROOT / "fish-speech" / "checkpoints" / "fish-speech-1.5"
-            / "firefly-gan-vq-fsq-8x1024-21hz-generator.pth",
+            checkpoint / "config.json",
+            checkpoint / "model.pth",
+            checkpoint / "firefly-gan-vq-fsq-8x1024-21hz-generator.pth",
             ROOT / "references" / "flanders_sample.wav",
             ROOT / "references" / "flanders_sample.txt",
         ]
         return all(path.exists() for path in files)
 
     def _hosted_ready(self) -> bool:
-        return fish_audio_tts is not None and bool(fish_audio_tts._api_key())
+        return fish_audio_tts is not None and fish_audio_tts.has_api_key()
 
     def _resolve_engine(self, requested: str) -> str:
         requested = _ENGINE_ALIASES.get(str(requested).strip().lower(), requested)
+
         if requested == "local":
             return "local"
+        if requested == "sapi":
+            return "sapi"
         if requested == "hosted":
             # Prefer the hosted voice, but never strand a message when no key is
             # present; fall through to the local model, then the Windows voice.
             if self._hosted_ready():
                 return "hosted"
             return "local" if self._local_ready() else "sapi"
-        if requested == "sapi":
-            return "sapi"
         if requested == "offline":
             # Background speech: local when available, otherwise the Windows
             # voice. Never the hosted engine, which needs a session key.
@@ -160,27 +156,45 @@ class FlandersVoice:
 
     # -- speaking ---------------------------------------------------------
 
-    def speak(self, text: str, keep: bool = False) -> str:
-        """Speak `text` and return the engine that handled it."""
+    def _local_voice(self):
+        if self._local is None:
+            self._local = flanders_local_tts.LocalFishVoice(device=self.device)
+        return self._local
+
+    def speak(
+        self,
+        text: str,
+        keep: bool = False,
+        save_path: str | os.PathLike[str] | None = None,
+    ) -> str:
+        """Speak `text` and return the engine that handled it.
+
+        `save_path` writes the audio there and leaves it in place; `keep` keeps
+        it under ``state/audio``. Failures fall through to the next engine so a
+        message is never silently dropped.
+        """
         text = (text or "").strip()
         if not text:
             return "nothing"
 
         if self.engine == "local":
-            if self._local is None:
-                self._local = flanders_local_tts.LocalFishVoice(device=self.device)
-            self._local.speak(text, keep=keep)
-            return "local"
+            try:
+                self._local_voice().speak(text, keep=keep, save_path=save_path)
+                return "local"
+            except Exception as exc:
+                print(f"Local voice failed ({exc}); using the Windows voice.")
+                return self._speak_sapi(text)
 
         if self.engine == "hosted":
-            if fish_audio_tts.speak(text, keep=keep):
+            if fish_audio_tts.speak(text, keep=keep, save_path=save_path):
                 return "hosted"
             if self._local_ready():
                 print("Hosted voice failed; using the local voice instead.")
-                if self._local is None:
-                    self._local = flanders_local_tts.LocalFishVoice(device=self.device)
-                self._local.speak(text, keep=keep)
-                return "local"
+                try:
+                    self._local_voice().speak(text, keep=keep, save_path=save_path)
+                    return "local"
+                except Exception as exc:
+                    print(f"Local voice failed ({exc}); using the Windows voice.")
             return self._speak_sapi(text)
 
         return self._speak_sapi(text)
@@ -195,7 +209,7 @@ class FlandersVoice:
             engine.say(text)
             engine.runAndWait()
             return "sapi"
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"Windows speech failed: {exc}")
             return "failed"
 
@@ -206,35 +220,30 @@ class FlandersVoice:
         if not task_description:
             raise ValueError("no task given")
 
+        response = task_response(task_description)
         classification = classify_task(task_description)
-        response = flanders_response(task_description)
 
         self.last_task = task_description
         self.last_classification = classification
-
-        spoken = (
-            f"Okily dokily! Task: {task_description}. "
-            f"Classification: {classification}. {response}"
-        )
 
         print()
         print(f"Task           : {task_description}")
         print(f"Classification : {classification}")
         print()
-        print(response)
+        print(response.detail)
         print()
 
-        engine = self.speak(spoken)
+        engine = self.speak(f"Task noted. {response.headline} Classification: {classification}.")
         print(f"[voice: {engine}]")
         return {
             "task": task_description,
             "classification": classification,
-            "response": response,
+            "response": response.render(),
             "voice": engine,
         }
 
-    def process_flander_command(self, command: str, args: list[str]) -> str:
-        """Handle the /flander command tree. Returns the reply text."""
+    def process_command(self, args: list[str]) -> str:
+        """Handle one ``/flanders`` command. Returns the reply text."""
         sub = args[0].lower() if args else "help"
         rest = args[1:]
 
@@ -250,7 +259,7 @@ class FlandersVoice:
                     f"Voice          : {self.engine}"
                 )
             else:
-                reply = "No task on the desk yet, captain. Say /flander delegate <task>."
+                reply = "No task on the desk yet, captain. Say /flanders delegate <task>."
             print(reply)
             return reply
         elif sub == "quit":
@@ -280,7 +289,7 @@ class FlandersVoice:
         return reply
 
 
-COMMAND_NAMES = ("/flander", "/flanders")
+COMMAND_NAMES = ("/flanders", "/flander")
 QUIT_NAMES = ("/quit", "quit", "exit", "q")
 QUIT = object()
 
@@ -321,15 +330,20 @@ def handle_line(voice, line: str):
         if head.startswith("/"):
             return None
         return ReadAloud(line)
-    return voice.process_flander_command(head, parts[1:])
+    return voice.process_command(parts[1:])
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Flanders voice and commands.")
     parser.add_argument("text", nargs="*", help="Say this and exit.")
-    parser.add_argument("--engine", default=None, choices=["auto", "online", "offline", "hosted", "local", "sapi"], help="Override voice_settings.json.")
+    parser.add_argument(
+        "--engine",
+        default=None,
+        choices=["auto", "online", "offline", "hosted", "local", "sapi"],
+        help="Override voice_settings.json.",
+    )
     parser.add_argument("--device", default=None, help="cuda or cpu for the local engine.")
-    parser.add_argument("--save", metavar="PATH", help="Save the audio instead of playing.")
+    parser.add_argument("--save", metavar="PATH", help="Write the audio here instead of playing.")
     args = parser.parse_args(argv)
 
     voice = FlandersVoice(engine=args.engine, device=args.device)
@@ -337,8 +351,13 @@ def main(argv: list[str] | None = None) -> int:
 
     text = " ".join(args.text).strip()
     if text:
-        print(f"[voice: {voice.speak(text, keep=bool(args.save))}]")
-        return 0
+        used = voice.speak(text, save_path=args.save)
+        print(f"[voice: {used}]")
+        return 0 if used not in ("failed", "nothing") else 1
+
+    if args.save:
+        print("Nothing to save: give the text to speak on the command line.", file=sys.stderr)
+        return 2
 
     print()
     print(HELP_TEXT)

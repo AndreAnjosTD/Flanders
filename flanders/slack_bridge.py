@@ -69,21 +69,24 @@ _print_lock = threading.Lock()
 
 
 def resolve_config_path(explicit=None):
+    """Find the Slack settings file: explicit path, FM_HOME, then firstmate."""
     if explicit:
         return Path(explicit).expanduser()
-    home = Path.home()
-    env_home = __import__("os").environ.get("FM_HOME")
+    env_home = os.environ.get("FM_HOME", "").strip()
     if env_home:
         return Path(env_home).expanduser() / "config" / "slack.env"
     return HERE.parent / "firstmate" / "config" / "slack.env"
 
 
 def parse_env_file(path):
+    """Read a KEY=value file, tolerating a leading ``export`` and quotes."""
     values = {}
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
+        if line.startswith("export "):
+            line = line[len("export ") :]
         key, _, value = line.partition("=")
         values[key.strip()] = value.strip().strip('"').strip("'")
     return values
@@ -92,8 +95,10 @@ def parse_env_file(path):
 def load_config(explicit=None):
     path = resolve_config_path(explicit)
     if not path.is_file():
-        fail(f"I can't find the Slack settings at {path}.\n"
-             "Point me at them with --config <path> or set FM_HOME.")
+        fail(
+            f"I can't find the Slack settings at {path}.\n"
+            "Point me at them with --config <path> or set FM_HOME."
+        )
     values = parse_env_file(path)
     bot = values.get("SLACK_BOT_TOKEN", "")
     channel = values.get("SLACK_CHANNEL_ID", "")
@@ -125,7 +130,7 @@ def call_api(method, payload, token):
     a JSON body and then report the parameter as missing.
     """
     body = urllib.parse.urlencode(payload).encode("utf-8")
-    request = urllib.request.Request(
+    request = urllib.request.Request(  # noqa: S310 - fixed https API base
         f"{API_BASE}/{method}",
         data=body,
         headers={
@@ -136,7 +141,7 @@ def call_api(method, payload, token):
         method="POST",
     )
     try:
-        with urllib.request.urlopen(request, timeout=20) as response:
+        with urllib.request.urlopen(request, timeout=20) as response:  # noqa: S310 - fixed https API base
             result = json.loads(response.read().decode("utf-8"))
     except urllib.error.URLError as error:
         fail(f"Slack is unreachable right now ({error.reason}).", 2)
@@ -190,11 +195,32 @@ def fetch_messages(config, limit=10, oldest=None):
 OPENERS_GOOD = ("Okily dokily!", "Hi-diddly-ho!", "Howdily-doodily!")
 OPENERS_BAD = ("Aw, hamburgers!", "Son of a diddly!", "Good gravy!")
 ALREADY_OPEN = re.compile(
-    r"^(okily|hi-diddly|howdily|praise the lord|aw, hamburgers|son of a diddly|good gravy|well, shucks|much obliged)",
+    r"^(okily|hi-diddly|howdily|praise the lord|aw, hamburgers|son of a diddly"
+    r"|good gravy|well, shucks|much obliged)",
     re.IGNORECASE,
 )
-GOOD_NEWS = ("ready", "works", "working", "done", "green", "passed", "landed", "fixed", "connected")
-BAD_NEWS = ("failed", "broken", "broke", "error", "stopped", "stuck", "blocked", "refused", "expired")
+GOOD_NEWS = (
+    "ready",
+    "works",
+    "working",
+    "done",
+    "green",
+    "passed",
+    "landed",
+    "fixed",
+    "connected",
+)
+BAD_NEWS = (
+    "failed",
+    "broken",
+    "broke",
+    "error",
+    "stopped",
+    "stuck",
+    "blocked",
+    "refused",
+    "expired",
+)
 NEIGHBOR = re.compile(r"\b(captain|neighbor|neighbour)\b", re.IGNORECASE)
 
 
@@ -417,7 +443,7 @@ def cmd_say(config, argv):
     plain = "--plain" in argv
     words = [item for item in argv if not item.startswith("--")]
     if not words:
-        fail('tell me what to say, for example: py slack_bridge.py say "staging is green"')
+        fail('tell me what to say, for example: slack_bridge.py say "staging is green"')
     text = " ".join(words)
     ts = post_message(config, text, plain=plain)
     print(f"sent to #firstmate ({ts})")
@@ -446,7 +472,8 @@ def _heartbeat(text=""):
     try:
         path = HERE / "state" / "slack-watch.heartbeat"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"{datetime.now().isoformat(timespec='seconds')} {text}\n", encoding="utf-8")
+        stamp = datetime.now().isoformat(timespec="seconds")
+        path.write_text(f"{stamp} {text}\n", encoding="utf-8")
     except OSError:
         pass
 
@@ -454,14 +481,16 @@ def _heartbeat(text=""):
 def _ping(watchdog):
     if not watchdog:
         return
+    if urllib.parse.urlsplit(watchdog).scheme != "https":
+        return
     try:
-        with urllib.request.urlopen(watchdog, timeout=10) as response:
+        with urllib.request.urlopen(watchdog, timeout=10) as response:  # noqa: S310 - https checked
             response.read(64)
-    except Exception:  # a watchdog ping must never stop the listener
-        pass
+    except Exception:
+        return
 
 
-def _speech_for(message):
+def speech_for(message):
     """What Flanders says out loud: cleaned, noise-filtered, never raw markup."""
     body = flanders_speech.speakable(body_text(message))
     if not body:
@@ -498,7 +527,7 @@ def cmd_watch(config, argv):
             last_seen = message.get("ts", last_seen)
             if message.get("subtype") in ("message_changed", "message_deleted"):
                 continue
-            emit(render(message), say_it=say_it, speech=_speech_for(message))
+            emit(render(message), say_it=say_it, speech=speech_for(message))
         if config.get("watchdog") and time.monotonic() - last_ping > 60:
             _ping(config["watchdog"])
             last_ping = time.monotonic()
@@ -530,7 +559,9 @@ def cmd_watch(config, argv):
 
     def poll():
         while not stop.is_set():
-            time.sleep(interval)
+            stop.wait(interval)
+            if stop.is_set():
+                break
             try:
                 poll_once()
             except SystemExit:
@@ -553,7 +584,7 @@ def cmd_watch(config, argv):
             if typed.lower() in ("/quit", "/exit", "q"):
                 break
             if typed.startswith("/say "):
-                typed = typed[len("/say "):]
+                typed = typed[len("/say ") :]
             post_message(config, typed)
             with _print_lock:
                 print("  sent", flush=True)
@@ -580,7 +611,7 @@ def main(argv):
             config_path = rest[index + 1]
         except IndexError:
             fail("--config needs a path.")
-        rest = rest[:index] + rest[index + 2:]
+        rest = rest[:index] + rest[index + 2 :]
 
     handlers = {"say": cmd_say, "read": cmd_read, "watch": cmd_watch}
     handler = handlers.get(command)

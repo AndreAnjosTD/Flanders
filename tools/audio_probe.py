@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from flanders import flanders_audio, fish_audio_tts
+from flanders import fish_audio_tts, flanders_audio
 
 CACHE = ROOT / "tests" / "voice"
 
@@ -64,7 +64,7 @@ def main(argv: list[str]) -> int:
         print(f"\n--- {path.stem} on device {index}: {label}", flush=True)
         try:
             flanders_audio.play(path, device=index)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"    failed: {exc}", flush=True)
         time.sleep(1.2)
 

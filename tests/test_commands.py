@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from flanders import voice_integration as voice  # noqa: E402
+from flanders import voice_integration as voice
 
 
 class FakeVoice:
@@ -21,8 +21,8 @@ class FakeVoice:
     def __init__(self) -> None:
         self.calls = []
 
-    def process_flander_command(self, command: str, args: list[str]) -> str:
-        self.calls.append((command, list(args)))
+    def process_command(self, args: list[str]) -> str:
+        self.calls.append(list(args))
         return "REPLY"
 
 
@@ -44,13 +44,13 @@ SILENT = [
 
 # A real command, with or without a valid flag, must reach the handler.
 DISPATCHED = [
-    ("/flanders bogus", "/flanders", ["bogus"]),
-    ("/flanders help", "/flanders", ["help"]),
-    ("/flanders status", "/flanders", ["status"]),
-    ("/flander modes", "/flander", ["modes"]),
-    ("/flanders", "/flanders", []),
-    ("/FLANDERS status", "/flanders", ["status"]),
-    ("  /flanders delegate ship it  ", "/flanders", ["delegate", "ship", "it"]),
+    ("/flanders bogus", ["bogus"]),
+    ("/flanders help", ["help"]),
+    ("/flanders status", ["status"]),
+    ("/flander modes", ["modes"]),
+    ("/flanders", []),
+    ("/FLANDERS status", ["status"]),
+    ("  /flanders delegate ship it  ", ["delegate", "ship", "it"]),
 ]
 
 QUIT_LINES = ["/quit", "exit", "q", "QUIT"]
@@ -68,11 +68,7 @@ def main() -> int:
     for line in SPOKEN:
         fake = FakeVoice()
         result = voice.handle_line(fake, line)
-        ok = (
-            isinstance(result, voice.ReadAloud)
-            and result.text == line
-            and not fake.calls
-        )
+        ok = isinstance(result, voice.ReadAloud) and result.text == line and not fake.calls
         passed &= check(ok, f"{line!r} -> {result!r}")
 
     print("\nunrelated slash commands stay completely inert:")
@@ -85,10 +81,10 @@ def main() -> int:
         )
 
     print("\nreal commands reach the handler:")
-    for line, expected_cmd, expected_args in DISPATCHED:
+    for line, expected_args in DISPATCHED:
         fake = FakeVoice()
         result = voice.handle_line(fake, line)
-        ok = result == "REPLY" and fake.calls == [(expected_cmd, expected_args)]
+        ok = result == "REPLY" and fake.calls == [expected_args]
         passed &= check(ok, f"{line!r} -> {fake.calls}")
 
     print("\nquit is recognised:")

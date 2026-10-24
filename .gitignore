@@ -16,8 +16,14 @@ fish_audio_key.txt
 .env
 *.key
 
-# Runtime state (pids, locks, logs, heartbeats)
+# Runtime state (pids, locks, logs, heartbeats, kept audio)
 state/
+
+# Any audio kept by --keep, even if an older checkout wrote it in the root
+flanders_*.wav
+
+# Tooling caches
+.ruff_cache/
 
 # Generated audio and reference media.
 # fetch_reference.py rebuilds the reference; the test clips are disposable.

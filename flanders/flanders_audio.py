@@ -14,7 +14,6 @@ When it is unset, the Windows default output is used.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from pathlib import Path
@@ -22,7 +21,10 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
-SETTINGS = ROOT / "voice_settings.json"
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
+
+from flanders import settings  # noqa: E402
 
 
 def list_devices() -> list[tuple[int, str, int]]:
@@ -46,17 +48,11 @@ def _configured_device() -> str:
     service, so it does not inherit a shell environment. The settings file is
     what survives that hand-off.
     """
-    env = os.environ.get("FLANDERS_AUDIO_DEVICE", "").strip()
-    if env:
-        return env
-    try:
-        data = json.loads(SETTINGS.read_text(encoding="utf-8"))
-        return str(data.get("audio_device") or "").strip()
-    except (OSError, ValueError):
-        return ""
+    return os.environ.get("FLANDERS_AUDIO_DEVICE", "").strip() or settings.text("audio_device")
 
 
-def _resolve(device: str | int | None) -> int | None:
+def resolve_device(device: str | int | None) -> int | None:
+    """Turn a name or index into a sounddevice index, or None for the default."""
     if device is None or device == "":
         device = _configured_device()
     if device is None or device == "":
@@ -80,14 +76,13 @@ def _resample(audio: np.ndarray, src_rate: int, dst_rate: int) -> np.ndarray:
     if src_rate == dst_rate or audio.size == 0:
         return audio
     frames = audio.shape[0]
-    target_frames = max(1, int(round(frames * dst_rate / src_rate)))
+    target_frames = max(1, round(frames * dst_rate / src_rate))
     src_positions = np.arange(frames, dtype=np.float64)
     dst_positions = np.linspace(0, frames - 1, target_frames)
     if audio.ndim == 1:
         return np.interp(dst_positions, src_positions, audio).astype(np.float32)
     channels = [
-        np.interp(dst_positions, src_positions, audio[:, ch])
-        for ch in range(audio.shape[1])
+        np.interp(dst_positions, src_positions, audio[:, ch]) for ch in range(audio.shape[1])
     ]
     return np.stack(channels, axis=1).astype(np.float32)
 
@@ -99,14 +94,14 @@ def _device_rate(device: int | None) -> int | None:
         info = sd.query_devices(device, kind="output")
         rate = int(info.get("default_samplerate") or 0)
         return rate or None
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
 def play(path: str | os.PathLike[str], device: str | int | None = None) -> None:
     """Play a WAV file, blocking until it finishes."""
     path = Path(path)
-    target = _resolve(device)
+    target = resolve_device(device)
 
     try:
         import sounddevice as sd
@@ -117,7 +112,7 @@ def play(path: str | os.PathLike[str], device: str | int | None = None) -> None:
             sd.play(audio, samplerate=rate, device=target)
             sd.wait()
             return
-        except Exception:  # noqa: BLE001 - retry at the device's native rate
+        except Exception:
             native = _device_rate(target)
             if not native or native == rate:
                 raise
@@ -125,7 +120,7 @@ def play(path: str | os.PathLike[str], device: str | int | None = None) -> None:
             sd.play(adjusted, samplerate=native, device=target)
             sd.wait()
             return
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"sounddevice playback failed ({exc}); falling back to winsound", file=sys.stderr)
 
     if sys.platform == "win32":

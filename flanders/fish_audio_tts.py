@@ -1,40 +1,27 @@
 #!/usr/bin/env python3
-"""
-Flanders voice via Fish Audio (Drama 3).
+"""Flanders' hosted voice: Fish Audio with the public Ned Flanders model.
 
-This is the "natural voice" engine for Flanders. It does not train anything:
-Drama 3 clones a voice zero-shot from a stored voice model, so any string can be
-spoken at runtime.
+This engine clones the voice zero-shot from a stored model, so an arbitrary
+string can be spoken at runtime. Nothing is trained here and no audio is kept
+after playback unless you ask for it.
 
-The voice model used by default is the Ned Flanders model on Fish Audio, which
-the platform already serves with Drama 3:
+Voice model:
     https://fish.audio/m/8ca8ea05a29548758a9085747db19879/
 
-Requirements:
-    A Fish Audio API key, from the environment for the session
-    (FISH_API_KEY / FISH_AUDIO_API_KEY) or from the Windows Credential Manager.
-    Never a file. The Proton Pass vault is read only by a deliberate, consented
-    action in scripts/import_key.py.
-    Create a key at https://fish.audio/app/api-keys/
+The API key comes from the environment for one session (``FISH_API_KEY`` /
+``FISH_AUDIO_API_KEY``) or from the Windows Credential Manager. It is never read
+from a file, and this module never touches the Proton Pass vault: that is only
+read by a deliberate, consented run of ``scripts/import_key.py``.
 
 Usage:
-    py fish_audio_tts.py "Okily dokily, captain!"
-    py fish_audio_tts.py --save out.wav "Praise the Lord!"
-    py fish_audio_tts.py --voice <model-id> "Hi-diddly-ho, neighborino!"
-    py fish_audio_tts.py --check
+    .\\.venv\\Scripts\\python.exe flanders\\fish_audio_tts.py "Okily dokily!"
+    .\\.venv\\Scripts\\python.exe flanders\\fish_audio_tts.py --save out.wav "Hi!"
+    .\\.venv\\Scripts\\python.exe flanders\\fish_audio_tts.py --check
 
 Programmatic use:
-    from fish_audio_tts import speak, synthesize
-    speak("Okily dokily!")            # writes a temp WAV and plays it
-    path = synthesize("Praise ...")   # writes a WAV and returns its path
-
-Design notes:
-    - The request asks for WAV so Windows can play it with winsound and no extra
-      dependency. MP3 is available with --format mp3.
-    - On a missing key or a billing/auth error this reports the concrete problem
-      and returns None instead of silently falling back.
-    - play_with_fallback() is the one place that falls back to the existing
-      pyttsx3 voice, so callers never have to guess which engine ran.
+    from flanders import fish_audio_tts
+    fish_audio_tts.speak("Okily dokily!")
+    path = fish_audio_tts.synthesize("Praise the Lord!")
 """
 
 from __future__ import annotations
@@ -45,93 +32,64 @@ import os
 import sys
 import tempfile
 import urllib.error
+import urllib.parse
 import urllib.request
+from contextlib import suppress
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 if __package__ in (None, ""):
     sys.path.insert(0, str(ROOT))
 
-SETTINGS_FILE = ROOT / "voice_settings.json"
+from flanders import settings  # noqa: E402
 
 API_URL = "https://api.fish.audio/v1/tts"
-DEFAULT_VOICE_ID = "8ca8ea05a29548758a9085747db19879"
-# s2.1-pro-free is the same model as S2.1-Pro at $0 under fair-use limits,
-# so the hosted voice costs nothing. Ask for drama-3 only when you want it.
-DEFAULT_MODEL = "s2.1-pro-free"
+DEFAULT_VOICE_ID = settings.DEFAULT_VOICE_ID
+DEFAULT_MODEL = settings.DEFAULT_MODEL
 
-
-def _settings() -> dict:
-    if not SETTINGS_FILE.exists():
-        return {}
-    try:
-        return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return {}
+# s2.1-pro-free is the same model as S2.1-Pro at no charge under fair use, so
+# the hosted voice costs nothing. Ask for drama-3 only when you want it.
+MAX_TEXT_CHARS = 2000
+MAX_AUDIO_BYTES = 32 * 1024 * 1024
+DEFAULT_TIMEOUT = 120
 
 
 def _model() -> str:
-    return (
-        os.environ.get("FISH_AUDIO_MODEL", "").strip()
-        or str(_settings().get("model") or "")
-        or DEFAULT_MODEL
-    )
+    return os.environ.get("FISH_AUDIO_MODEL", "").strip() or settings.text("model", DEFAULT_MODEL)
 
 
-def _env_float(name: str, default: float) -> float:
-    raw = os.environ.get(name, "").strip()
-    if not raw:
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        return default
-
-
-def _env_text(name: str, default: str = "") -> str:
-    return os.environ.get(name, "").strip() or default
-
-
-def _tuned(name: str, env_name: str, default):
-    """Explicit value, else environment, else voice_settings.json, else default."""
+def _tuned(name: str, env_name: str, default: float) -> float:
+    """Environment value first, then voice_settings.json, then the default."""
     raw = os.environ.get(env_name, "").strip()
     if raw:
-        try:
+        with suppress(ValueError):
             return float(raw)
-        except ValueError:
-            pass
-    value = _settings().get(name)
-    if value is not None:
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            pass
-    return default
+    return settings.number(name, default)
 
 
 def _api_key() -> str | None:
-    """The hosted key: this session's environment, else the OS credential store.
-
-    Never a file, and never a Proton Pass lookup. The vault is only read by a
-    deliberate, consented action in scripts/import_key.py.
-    """
+    """This session's key, else the OS credential store. Never a file."""
     from flanders import secret_store
 
     return secret_store.get_secret("fish_audio")
 
 
-def key_fingerprint(key: str) -> str:
-    """A one-way reference to a key, safe to print or log."""
-    import hashlib
-
-    return "sha256:" + hashlib.sha256(key.encode()).hexdigest()[:12]
+def has_api_key() -> bool:
+    """True when a hosted key is available, without exposing it."""
+    return bool(_api_key())
 
 
-def _play(path: Path) -> None:
-    """Play an audio file, blocking until it finishes."""
-    from flanders.flanders_audio import play
+def _open(request: urllib.request.Request, timeout: int):
+    """Open an HTTPS request, refusing any other scheme.
 
-    play(path)
+    The URL is a module constant, so this is a defence-in-depth check rather
+    than a real branch: it keeps a future refactor from ever passing a
+    ``file://`` or custom-scheme URL to urlopen.
+    """
+    scheme = urllib.parse.urlsplit(request.full_url).scheme
+    if scheme != "https":
+        raise ValueError(f"refusing a non-HTTPS request: {scheme or 'no scheme'}")
+    return urllib.request.urlopen(request, timeout=timeout)  # noqa: S310 - scheme checked
 
 
 def synthesize(
@@ -140,7 +98,7 @@ def synthesize(
     model: str | None = None,
     audio_format: str = "wav",
     out_path: str | os.PathLike[str] | None = None,
-    timeout: int = 120,
+    timeout: int = DEFAULT_TIMEOUT,
     speed: float | None = None,
     temperature: float | None = None,
     top_p: float | None = None,
@@ -152,12 +110,16 @@ def synthesize(
     if not text:
         print("Nothing to speak: the text is empty.")
         return None
+    if len(text) > MAX_TEXT_CHARS:
+        print(f"Text trimmed to the first {MAX_TEXT_CHARS} characters.")
+        text = text[:MAX_TEXT_CHARS]
+
     if model is None:
         model = _model()
 
     voice_id = (
-        _env_text("FISH_AUDIO_VOICE_ID")
-        or str(_settings().get("voice_id") or "")
+        os.environ.get("FISH_AUDIO_VOICE_ID", "").strip()
+        or settings.text("voice_id", voice_id)
         or voice_id
     )
 
@@ -171,7 +133,7 @@ def synthesize(
     style = (
         style
         if style is not None
-        else (_env_text("FISH_AUDIO_STYLE") or str(_settings().get("style") or ""))
+        else (os.environ.get("FISH_AUDIO_STYLE", "").strip() or settings.text("style"))
     )
     if style:
         text = f"{style} {text}"
@@ -212,8 +174,8 @@ def synthesize(
     )
 
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            audio = response.read()
+        with _open(request, timeout) as response:
+            audio = response.read(MAX_AUDIO_BYTES + 1)
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "replace")[:500]
         hints = {
@@ -228,12 +190,18 @@ def synthesize(
     except urllib.error.URLError as exc:
         print(f"Could not reach Fish Audio: {exc.reason}")
         return None
+    except ValueError as exc:
+        print(f"Fish Audio request refused: {exc}")
+        return None
 
-    if outf := out_path:
-        path = Path(outf)
+    if len(audio) > MAX_AUDIO_BYTES:
+        print(f"Fish Audio returned more than {MAX_AUDIO_BYTES // 1048576} MB; discarded.")
+        return None
+
+    if out_path is not None:
+        path = Path(out_path)
     else:
-        suffix = f".{audio_format}"
-        handle, name = tempfile.mkstemp(prefix="flanders_", suffix=suffix)
+        handle, name = tempfile.mkstemp(prefix="flanders_", suffix=f".{audio_format}")
         os.close(handle)
         path = Path(name)
 
@@ -248,13 +216,16 @@ def speak(
     model: str | None = None,
     audio_format: str = "wav",
     keep: bool = False,
+    save_path: str | os.PathLike[str] | None = None,
     **options,
 ) -> bool:
-    """Synthesize and play the text. True when audio was produced and played."""
-    out_path = None
-    if keep:
-        safe = "".join(c if c.isalnum() else "_" for c in text[:40]).strip("_")
-        out_path = ROOT / f"flanders_{safe or 'line'}.wav"
+    """Synthesize and play `text`. True when audio was produced and played."""
+    from flanders.flanders_audio import play
+
+    out_path = save_path
+    if out_path is None and keep:
+        safe = "".join(char if char.isalnum() else "_" for char in text[:40]).strip("_")
+        out_path = settings.ROOT / "state" / "audio" / f"{safe or 'line'}.wav"
 
     path = synthesize(
         text,
@@ -267,36 +238,15 @@ def speak(
     if path is None:
         return False
 
-    _play(path)
-    if not keep:
-        try:
+    play(path)
+    if save_path is None and not keep:
+        with suppress(OSError):
             path.unlink()
-        except OSError:
-            pass
     return True
 
 
-def play_with_fallback(text: str, **kwargs) -> str:
-    """Speak with Fish Audio when possible, otherwise with the local pyttsx3 voice."""
-    if _api_key():
-        return "fish-audio" if speak(text, **kwargs) else "failed"
-
-    try:
-        import pyttsx3
-
-        engine = pyttsx3.init()
-        engine.setProperty("rate", 130)
-        engine.setProperty("volume", 0.9)
-        engine.say(text)
-        engine.runAndWait()
-        return "pyttsx3"
-    except Exception as exc:  # noqa: BLE001 - report the concrete reason
-        print(f"Local speech fallback failed: {exc}")
-        return "failed"
-
-
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Flanders voice through Fish Audio Drama 3.")
+    parser = argparse.ArgumentParser(description="Flanders voice through Fish Audio.")
     parser.add_argument("text", nargs="*", help="Text to speak.")
     parser.add_argument("--voice", default=DEFAULT_VOICE_ID, help="Fish Audio voice model id.")
     parser.add_argument(
@@ -306,9 +256,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--format", default="wav", choices=["wav", "mp3", "pcm", "opus"])
     parser.add_argument("--speed", type=float, default=None, help="0.5 to 2.0, default 1.0.")
-    parser.add_argument("--temperature", type=float, default=None, help="Expressiveness, 0.1 to 1.0.")
-    parser.add_argument("--top-p", dest="top_p", type=float, default=None, help="Diversity, 0.1 to 1.0.")
-    parser.add_argument("--style", default=None, help="Bracket style tag, e.g. \"[cheerful]\".")
+    parser.add_argument(
+        "--temperature", type=float, default=None, help="Expressiveness, 0.1 to 1.0."
+    )
+    parser.add_argument(
+        "--top-p", dest="top_p", type=float, default=None, help="Diversity, 0.1 to 1.0."
+    )
+    parser.add_argument("--style", default=None, help='Bracket style tag, e.g. "[cheerful]".')
     parser.add_argument("--save", metavar="PATH", help="Save to this path instead of a temp file.")
     parser.add_argument("--check", action="store_true", help="Report key and voice configuration.")
     args = parser.parse_args(argv)
@@ -316,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.check:
         from flanders import secret_store
 
-        key = _api_key()
+        key = has_api_key()
         print(f"API key: {secret_store.describe('fish_audio')}")
         print(f"Voice id: {args.voice}")
         print(f"Model: {args.model or _model()}")
@@ -326,12 +280,12 @@ def main(argv: list[str] | None = None) -> int:
     if not text:
         parser.error("give some text to speak")
 
-    options = dict(
-        speed=args.speed,
-        temperature=args.temperature,
-        top_p=args.top_p,
-        style=args.style,
-    )
+    options = {
+        "speed": args.speed,
+        "temperature": args.temperature,
+        "top_p": args.top_p,
+        "style": args.style,
+    }
 
     if args.save:
         path = synthesize(

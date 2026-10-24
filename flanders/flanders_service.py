@@ -32,6 +32,7 @@ import sys
 import threading
 import time
 import uuid
+from contextlib import suppress
 from datetime import datetime
 from pathlib import Path
 
@@ -50,14 +51,10 @@ if _VENV_SITE.is_dir():
             sys.path.append(str(_extra))
     _dll_dir = _VENV_SITE / "pywin32_system32"
     if _dll_dir.is_dir():
-        try:
+        with suppress(AttributeError, OSError):
             os.add_dll_directory(str(_dll_dir))
-        except (AttributeError, OSError):
-            pass
-    try:
+    with suppress(ImportError):
         import pywin32_bootstrap  # noqa: F401
-    except ImportError:
-        pass
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -76,6 +73,7 @@ def _boot(step: str) -> None:
 
 _boot("module start")
 
+import win32api  # noqa: E402
 import win32con  # noqa: E402
 
 _boot("win32con")
@@ -115,6 +113,14 @@ PYTHONW = HERE / ".venv" / "Scripts" / "pythonw.exe"
 
 SERVICE_NAME = "FlandersSlackWatch"
 DISPLAY_NAME = "Flanders Slack Watch"
+
+# Resolve the Windows tools by absolute path. A service account's PATH is not a
+# trust boundary worth relying on, and an elevated process should never let a
+# planted sc.exe win the race.
+_SYSTEM32 = Path(os.environ.get("SYSTEMROOT", r"C:\Windows")) / "System32"
+SC_EXE = _SYSTEM32 / "sc.exe"
+SCHTASKS_EXE = _SYSTEM32 / "schtasks.exe"
+
 DESCRIPTION = (
     "Reads #firstmate and speaks new messages in the captain's session. "
     "Started automatically at boot and restarted on failure."
@@ -176,7 +182,7 @@ def launch_speaker() -> bool:
 
     try:
         token = win32ts.WTSQueryUserToken(session_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log(f"WTSQueryUserToken failed for session {session_id}: {exc}")
         return False
 
@@ -185,7 +191,7 @@ def launch_speaker() -> bool:
         command = f'"{exe}" "{SPEAKER_SCRIPT}"'
         startup = win32process.STARTUPINFO()
         startup.lpDesktop = "winsta0\\default"
-        win32process.CreateProcessAsUser(
+        process, thread, _pid, _tid = win32process.CreateProcessAsUser(
             token,
             exe,
             command,
@@ -197,11 +203,20 @@ def launch_speaker() -> bool:
             str(HERE),
             startup,
         )
+        # The child owns its own references; ours would otherwise leak.
+        with suppress(Exception):
+            win32api.CloseHandle(process)
+            win32api.CloseHandle(thread)
         log(f"speaker launched in session {session_id}")
         return True
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log(f"CreateProcessAsUser failed: {exc}")
         return False
+    finally:
+        # The token handle is ours to close; leaking one per launch is how a
+        # long-running service slowly runs out of handles.
+        with suppress(Exception):
+            win32api.CloseHandle(token)
 
 
 # ---- the work ------------------------------------------------------------
@@ -216,11 +231,9 @@ class Watcher:
     def start(self) -> None:
         # A previous run leaves a heartbeat behind. Clear it, or the supervisor
         # believes a speaker is alive and waits a full minute before starting one.
-        try:
+        with suppress(OSError):
             SPEAKER_HEARTBEAT.unlink(missing_ok=True)
             SPEAKER_STOP.unlink(missing_ok=True)
-        except OSError:
-            pass
 
         self.config = slack_bridge.load_config()
         recent = slack_bridge.fetch_messages(self.config, limit=1)
@@ -228,16 +241,14 @@ class Watcher:
         log(f"watching channel {self.config['channel']} from ts {self.last_seen}")
 
     def poll_once(self) -> None:
-        messages = slack_bridge.fetch_messages(
-            self.config, limit=20, oldest=self.last_seen
-        )
+        messages = slack_bridge.fetch_messages(self.config, limit=20, oldest=self.last_seen)
         # Resolve ids to names before anything is spoken or logged.
         slack_bridge.resolve_names(self.config, messages)
         for message in messages:
             self.last_seen = message.get("ts") or self.last_seen
             if message.get("subtype") in ("message_changed", "message_deleted"):
                 continue
-            speech = slack_bridge._speech_for(message)
+            speech = slack_bridge.speech_for(message)
             if not speech:
                 continue
             enqueue(speech)
@@ -250,7 +261,7 @@ class Watcher:
     def run(self) -> None:
         try:
             self.start()
-        except BaseException as exc:  # noqa: BLE001 - never let startup kill the service
+        except BaseException as exc:
             log(f"startup failed: {exc}")
             return
 
@@ -258,7 +269,7 @@ class Watcher:
         while not self.stop_event.is_set():
             try:
                 self.poll_once()
-            except BaseException as exc:  # noqa: BLE001 - keep polling after any error
+            except BaseException as exc:
                 log(f"poll failed: {exc}")
 
             now = time.monotonic()
@@ -266,17 +277,15 @@ class Watcher:
                 last_check = now
                 try:
                     self.supervise_speaker()
-                except BaseException as exc:  # noqa: BLE001
+                except BaseException as exc:
                     log(f"speaker supervision failed: {exc}")
 
             self.stop_event.wait(POLL_SECONDS)
 
     def stop(self) -> None:
         self.stop_event.set()
-        try:
+        with suppress(OSError):
             SPEAKER_STOP.write_text("stop", encoding="utf-8")
-        except OSError:
-            pass
 
 
 # ---- the Windows service -------------------------------------------------
@@ -300,10 +309,8 @@ class FlandersService(win32serviceutil.ServiceFramework):
         servicemanager.LogInfoMsg(f"{SERVICE_NAME} starting")
         log("service starting")
         self._watcher.run()
-        try:
+        with suppress(OSError):
             SPEAKER_STOP.unlink(missing_ok=True)
-        except OSError:
-            pass
         log("service stopped")
         servicemanager.LogInfoMsg(f"{SERVICE_NAME} stopped")
 
@@ -314,13 +321,14 @@ class FlandersService(win32serviceutil.ServiceFramework):
 def is_admin() -> bool:
     try:
         return bool(ctypes.windll.shell32.IsUserAnAdmin())
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
 def sc(*args: str) -> tuple[int, str]:
-    result = subprocess.run(
-        ["sc.exe", *args], capture_output=True, text=True, check=False
+    """Run sc.exe with a fixed argument list; never a shell string."""
+    result = subprocess.run(  # noqa: S603 - absolute exe, list args, no shell
+        [str(SC_EXE), *args], capture_output=True, text=True, check=False
     )
     return result.returncode, (result.stdout + result.stderr).strip()
 
@@ -351,7 +359,7 @@ def install() -> int:
         time.sleep(2)
         try:
             win32serviceutil.RemoveService(SERVICE_NAME)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             print(f"could not remove the old service: {exc}")
         time.sleep(1)
 
@@ -365,21 +373,26 @@ def install() -> int:
             exeArgs=f'"{script}" --run-service',
             description=DESCRIPTION,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"service install failed: {exc}")
         return 1
 
     sc(
-        "failure", SERVICE_NAME,
-        "reset=", "86400",
-        "actions=", "restart/5000/restart/10000/restart/30000",
+        "failure",
+        SERVICE_NAME,
+        "reset=",
+        "86400",
+        "actions=",
+        "restart/5000/restart/10000/restart/30000",
     )
     sc("failureflag", SERVICE_NAME, "1")
 
     # The scheduled-task era is over; make sure the old one cannot double up.
-    subprocess.run(
-        ["schtasks", "/delete", "/tn", SERVICE_NAME, "/f"],
-        capture_output=True, text=True, check=False,
+    subprocess.run(  # noqa: S603 - absolute exe, list args, no shell
+        [str(SCHTASKS_EXE), "/delete", "/tn", SERVICE_NAME, "/f"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
 
     code, output = sc("start", SERVICE_NAME)
@@ -397,7 +410,7 @@ def uninstall() -> int:
         win32serviceutil.RemoveService(SERVICE_NAME)
         print("service removed")
         return 0
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         print(f"service removal failed: {exc}")
         return 1
 
@@ -406,7 +419,7 @@ def status() -> int:
     if not service_exists():
         print(f"{SERVICE_NAME}: not installed")
         return 3
-    code, output = sc("query", SERVICE_NAME, "ex")
+    _code, output = sc("query", SERVICE_NAME, "ex")
     print(output)
     if SPEAKER_HEARTBEAT.exists():
         age = time.time() - SPEAKER_HEARTBEAT.stat().st_mtime

@@ -28,7 +28,10 @@ def run(half: bool) -> None:
         elapsed = time.perf_counter() - started
         info = sf.info(str(path))
         audio = info.frames / info.samplerate
-        print(f"{label} run {index + 1}: {elapsed:5.2f}s for {audio:4.2f}s audio, RTF {elapsed / audio:4.2f}")
+        print(
+            f"{label} run {index + 1}: {elapsed:5.2f}s for {audio:4.2f}s audio, "
+            f"RTF {elapsed / audio:4.2f}"
+        )
 
 
 if __name__ == "__main__":
