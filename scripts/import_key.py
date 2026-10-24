@@ -27,7 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from flanders import secrets  # noqa: E402
+from flanders import secret_store  # noqa: E402
 
 VAULT_NAME = "NodeHug"
 ITEM_TITLE = "Audio Fish"
@@ -52,12 +52,12 @@ def run(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedPr
 
 
 def ensure_session() -> bool:
-    if run("info").returncode == 0:
+    if run("info", env=session_env()).returncode == 0:
         return True
 
     print("session expired; re-authenticating with the stored bootstrap token")
-    run("logout", "--force")
-    bootstrap = secrets.get_secret("proton_pass_pat")
+    run("logout", "--force", env=session_env())
+    bootstrap = secret_store.get_secret("proton_pass_pat")
     if not bootstrap:
         print("no bootstrap token in the credential store; run the login by hand")
         return False
@@ -66,9 +66,14 @@ def ensure_session() -> bool:
     env["PROTON_PASS_PERSONAL_ACCESS_TOKEN"] = bootstrap
     login = run("login", env=env)
     if login.returncode != 0:
-        print("login failed:", login.stderr.strip()[:200])
-        return False
-    return True
+        # A session can already be live even when login refuses; treat that as
+        # success and confirm it with the real health check below.
+        combined = (login.stdout + login.stderr).lower()
+        if "already authenticated" not in combined:
+            print("login failed:", login.stderr.strip()[:200])
+            return False
+
+    return run("info", env=session_env()).returncode == 0
 
 
 def import_from_vault() -> int:
@@ -91,11 +96,11 @@ def import_from_vault() -> int:
         print("the vault returned an empty value")
         return 1
 
-    if not secrets.store_secret(key, "fish_audio", "Fish Audio API key for Flanders"):
+    if not secret_store.store_secret(key, "fish_audio", "Fish Audio API key for Flanders"):
         print("could not store the key")
         return 1
 
-    print(f"stored in the credential store: {secrets.fingerprint(key)}")
+    print(f"stored in the credential store: {secret_store.fingerprint(key)}")
     return 0
 
 
@@ -108,11 +113,11 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     if args.status:
-        print(f"source: {secrets.describe('fish_audio')}")
+        print(f"source: {secret_store.describe('fish_audio')}")
         return 0
 
     if args.forget:
-        print("removed" if secrets.delete_secret("fish_audio") else "nothing to remove")
+        print("removed" if secret_store.delete_secret("fish_audio") else "nothing to remove")
         return 0
 
     return import_from_vault()

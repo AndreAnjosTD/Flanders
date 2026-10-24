@@ -115,9 +115,9 @@ def _api_key() -> str | None:
     Never a file, and never a Proton Pass lookup. The vault is only read by a
     deliberate, consented action in scripts/import_key.py.
     """
-    from flanders import secrets
+    from flanders import secret_store
 
-    return secrets.get_secret("fish_audio")
+    return secret_store.get_secret("fish_audio")
 
 
 def key_fingerprint(key: str) -> str:
@@ -314,10 +314,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.check:
-        from flanders import secrets
+        from flanders import secret_store
 
         key = _api_key()
-        print(f"API key: {secrets.describe('fish_audio')}")
+        print(f"API key: {secret_store.describe('fish_audio')}")
         print(f"Voice id: {args.voice}")
         print(f"Model: {args.model or _model()}")
         return 0 if key else 1
