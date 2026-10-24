@@ -81,11 +81,57 @@ Three engines, tried in order, so a network hiccup never leaves the room silent:
 | 2 | **Local** — Fish Speech 1.5 | Offline, free, cloned from the reference sample; slower |
 | 3 | **Fallback** — Windows SAPI | Robotic, but always there |
 
+## 📋 Requirements
+
+| Need | When | Notes |
+|---|---|---|
+| Windows 10 or 11 | always | the service, the SAPI fallback, and the win32 calls are Windows-only |
+| Python 3.12 | always | everything runs in the project virtual environment |
+| `requirements.txt` | always | audio playback, the speech fallback, and the service host |
+| A Fish Audio key | hosted voice | free tier; without it the local or Windows voice takes over |
+| An NVIDIA GPU | offline voice | only for the local Fish Speech model |
+| A Slack app | the listener | bot token with read and write scopes |
+| firstmate | optional | the Slack listener reads its config by default |
+
+### 🤝 How firstmate fits
+
+Flanders does not import firstmate, and the voice, the character, and the
+`/flanders` command tree all run without it. The relationship runs in two
+directions:
+
+1. **firstmate calls Flanders.** Its `/flanders` skill runs
+   `flanders/flanders_say.py` to speak a reply.
+2. **The Slack listener reads firstmate's config by default.** `slack_bridge.py`
+   resolves `config/slack.env` in this order: `--config <path>`, then
+   `$FM_HOME/config/slack.env`, then `../firstmate/config/slack.env`.
+
+So firstmate is the default neighbour, not a hard dependency: any file with the
+right keys works, and `--config` overrides everything.
+
+### 💬 The Slack app
+
+The listener needs a Slack app installed in the workspace. Its bot token needs:
+
+| Scope | Why |
+|---|---|
+| `channels:history` or `groups:history` | read the channel |
+| `chat:write` | post replies |
+| `users:read` *(optional)* | speak real names instead of "a teammate" |
+
+`config/slack.env` holds the keys:
+
+```
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_CHANNEL_ID=C...
+SLACK_OWNER_USER_ID=U...
+SLACK_WATCHDOG_URL=        # optional health ping
+```
+
 ## ⚡ Quick start
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements-local.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe flanders\voice_integration.py
 ```
 

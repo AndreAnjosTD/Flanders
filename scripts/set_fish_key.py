@@ -2,7 +2,7 @@
 r"""Save and verify a Fish Audio API key.
 
 Usage:
-    .\.venv\Scripts\python.exe set_fish_key.py <key> [--no-test]
+    .\.venv\Scripts\python.exe scripts\set_fish_key.py <key> [--no-test]
 
 The key is written to fish_audio_key.txt beside this file. The file is read by
 fish_audio_tts.py, which voice_integration.py uses for the hosted Drama 3 voice.

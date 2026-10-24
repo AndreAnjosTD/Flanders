@@ -1,3 +1,11 @@
+-r requirements.txt
+
+# Offline Fish Speech 1.5 voice.
+#
+# PyTorch is installed by scripts/setup_local.ps1 with the CUDA index, because
+# the right wheel depends on the machine's GPU. Everything below is the rest of
+# the inference stack.
+
 numpy==1.26.4
 transformers>=4.45.2,<5
 loguru
@@ -24,6 +32,7 @@ natsort>=8.4.0
 rich>=13.5.3
 typing_extensions
 imageio-ffmpeg
-pyttsx3
+
+# ASR extras the Fish Speech tooling references.
 SpeechRecognition
 pyaudio

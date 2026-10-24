@@ -48,7 +48,7 @@ The raw text still goes to the log, so nothing is lost.
 Preview real messages, or check the rules:
 
 ```powershell
-.\.venv\Scripts\python.exe flanders_speech.py --preview
+.\.venv\Scripts\python.exe flanders\flanders_speech.py --preview
 .\.venv\Scripts\python.exe tests\test_speech.py
 ```
 
