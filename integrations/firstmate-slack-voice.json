@@ -1,0 +1,16 @@
+{
+  "_comment": "Flanders' voice for firstmate's Slack bridge. firstmate ships plain English and reads this file only when FM_SLACK_VOICE names it, so the character lives here and firstmate stays vanilla. Delete this file or unset the variable and firstmate simply speaks plainly.",
+  "command": "flanders,flander",
+  "ok": "Okily dokily!",
+  "oops": "Aw, hamburgers!",
+  "hello": "Hi-diddly-ho!",
+  "blocked": "Well, shucks.",
+  "reconnect": "Back on the air!",
+  "readyTail": "Right this way, neighborino.",
+  "decisionOpen": "Howdily-doodily!",
+  "decisionTail": "Your call, captain.",
+  "pet": ", neighborino",
+  "friend": ", neighbor",
+  "thanks": "Much obliged!",
+  "farewell": "Okily dokily! I am stepping off the line for a spell, neighborino. Anything you send while I am away waits for me, and I will tell you what I missed when I am back."
+}
