@@ -122,7 +122,9 @@ directions:
    `flanders/flanders_say.py` to speak a reply.
 2. **The Slack listener reads firstmate's config by default.** `slack_bridge.py`
    resolves `config/slack.env` in this order: `--config <path>`, then
-   `$FM_HOME/config/slack.env`, then `../firstmate/config/slack.env`.
+   `$FM_HOME/config/slack.env`, then `firstmate/config/slack.env` beside this
+   folder, then the same name one or two directories up. That last step is what
+   keeps it working when the folders are grouped by kind — `Third_Party/` today.
 
 So firstmate is the default neighbour, not a hard dependency: any file with the
 right keys works, and `--config` overrides everything.

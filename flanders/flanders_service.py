@@ -60,6 +60,31 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
+def _attach_streams() -> None:
+    """Give stdout and stderr somewhere to go when running as a service.
+
+    A Windows service has no console, so Python leaves both as None. Any
+    library that prints, or writes an error message, then dies with
+    ``AttributeError: 'NoneType' object has no attribute 'write'`` - which is
+    how a missing settings file turned into a service that would not start.
+    """
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    try:
+        target = ROOT / "state"
+        target.mkdir(parents=True, exist_ok=True)
+        stream = (target / "service-stdio.log").open("a", encoding="utf-8", buffering=1)
+    except OSError:
+        stream = Path(os.devnull).open("w", encoding="utf-8")  # noqa: SIM115 - lives as long as the process
+    if sys.stdout is None:
+        sys.stdout = stream
+    if sys.stderr is None:
+        sys.stderr = stream
+
+
+_attach_streams()
+
+
 def _boot(step: str) -> None:
     """Breadcrumb trail for diagnosing service startup."""
     try:

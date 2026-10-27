@@ -29,7 +29,8 @@ Configuration:
 
         1. --config <path>
         2. $FM_HOME/config/slack.env
-        3. ../firstmate/config/slack.env beside this folder
+        3. firstmate/config/slack.env beside this folder, then the same name
+           one or two directories up, so a grouped layout still resolves
 
     The bot token needs chat:write to post and groups:history to read a private
     channel. Nothing here stores, prints, or transmits the token anywhere except
@@ -49,7 +50,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, suppress
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
@@ -69,13 +70,27 @@ _print_lock = threading.Lock()
 
 
 def resolve_config_path(explicit=None):
-    """Find the Slack settings file: explicit path, FM_HOME, then firstmate."""
+    """Find the Slack settings file: explicit path, FM_HOME, then firstmate.
+
+    The firstmate home used to sit in the directory beside this project. After a
+    reorganisation it can be a level or two away behind a grouping folder, so
+    the conventional neighbour is tried first and then a short bounded walk that
+    accepts the first real file it finds.
+    """
     if explicit:
         return Path(explicit).expanduser()
     env_home = os.environ.get("FM_HOME", "").strip()
     if env_home:
         return Path(env_home).expanduser() / "config" / "slack.env"
-    return HERE.parent / "firstmate" / "config" / "slack.env"
+
+    conventional = HERE.parent / "firstmate" / "config" / "slack.env"
+    if conventional.is_file():
+        return conventional
+    for base in (HERE.parent, HERE.parent.parent, HERE.parent.parent.parent):
+        found = sorted(base.glob("*/firstmate/config/slack.env"))
+        if found:
+            return found[0]
+    return conventional
 
 
 def parse_env_file(path):
@@ -116,7 +131,14 @@ def load_config(explicit=None):
 
 
 def fail(message, code=1):
-    sys.stderr.write(f"Flanders: {message}\n")
+    # A Windows service has no console, so sys.stderr can be None. Writing to it
+    # unconditionally is what turned a plain "config missing" into an
+    # AttributeError that took the whole service down.
+    line = f"Flanders: {message}\n"
+    stream = sys.stderr or sys.stdout or sys.__stderr__
+    if stream is not None:
+        with suppress(Exception):
+            stream.write(line)
     raise SystemExit(code)
 
 
